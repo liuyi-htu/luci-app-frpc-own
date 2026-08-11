@@ -1,0 +1,195 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+USE_PROCD=1
+
+PROG=/usr/bin/frpc
+CONF=/tmp/frpc/runtime/frpc.toml
+PERSIST_CONF=/etc/frp-stack/frpc.toml
+UCI_CONFIG=frpc
+LOG_ENFORCER=/usr/libexec/frpc-enforce-log
+
+service_error() {
+	local message="$1"
+	logger -t frpc "$message"
+	printf '%s\n' "$message" >&2
+}
+
+toml_quote() {
+	local value="$1"
+	value=${value//\\/\\\\}
+	value=${value//\"/\\\"}
+	printf '"%s"' "$value"
+}
+
+write_line() {
+	printf '%s\n' "$*" >> "$CONF"
+}
+
+write_string_array() {
+	local key="$1" values="$2" item output='' old_ifs="$IFS"
+	[ -n "$values" ] || return 0
+	IFS=','
+	for item in $values; do
+		item="${item#${item%%[![:space:]]*}}"
+		item="${item%${item##*[![:space:]]}}"
+		[ -n "$item" ] || continue
+		[ -z "$output" ] || output="$output, "
+		output="$output$(toml_quote "$item")"
+	done
+	IFS="$old_ifs"
+	[ -z "$output" ] || write_line "$key = [$output]"
+	return 0
+}
+
+render_proxy() {
+	local section="$1" enabled name type local_ip local_port remote_port custom_domains subdomain secret_key allow_users multiplexer use_encryption use_compression
+	config_get enabled "$section" enabled '1'
+	[ "$enabled" = '0' ] && return
+	config_get name "$section" name
+	[ -n "$name" ] || return
+	config_get type "$section" type 'tcp'
+	config_get local_ip "$section" local_ip '127.0.0.1'
+	config_get local_port "$section" local_port
+	config_get remote_port "$section" remote_port
+	config_get custom_domains "$section" custom_domains
+	config_get subdomain "$section" subdomain
+	config_get secret_key "$section" secret_key
+	config_get allow_users "$section" allow_users
+	config_get multiplexer "$section" multiplexer 'httpconnect'
+	config_get use_encryption "$section" use_encryption 'false'
+	config_get use_compression "$section" use_compression 'false'
+	[ -n "$local_port" ] || return
+	case "$type" in
+		http|https|tcpmux) [ -n "$custom_domains" ] || [ -n "$subdomain" ] || return ;;
+		tcp|udp) [ -n "$remote_port" ] || return ;;
+		stcp|sudp|xtcp) [ -n "$secret_key" ] || return ;;
+		*) return ;;
+	esac
+	write_line "[[proxies]]"
+	write_line "name = $(toml_quote "$name")"
+	write_line "type = $(toml_quote "$type")"
+	write_line "localIP = $(toml_quote "$local_ip")"
+	write_line "localPort = $local_port"
+	write_line "transport.useEncryption = $use_encryption"
+	write_line "transport.useCompression = $use_compression"
+	case "$type" in
+		tcp|udp)
+		write_line "remotePort = $remote_port"
+		;;
+		http|https|tcpmux)
+		write_string_array customDomains "$custom_domains"
+		[ -z "$subdomain" ] || write_line "subdomain = $(toml_quote "$subdomain")"
+		[ "$type" != 'tcpmux' ] || write_line "multiplexer = $(toml_quote "$multiplexer")"
+		;;
+		stcp|sudp|xtcp)
+		write_line "secretKey = $(toml_quote "$secret_key")"
+		write_string_array allowUsers "$allow_users"
+		;;
+	esac
+	write_line ''
+}
+
+render_visitor() {
+	local section="$1" enabled name type server_name server_user secret_key bind_addr bind_port use_encryption use_compression keep_tunnel_open
+	config_get enabled "$section" enabled '1'
+	[ "$enabled" = '0' ] && return
+	config_get name "$section" name
+	config_get type "$section" type
+	config_get server_name "$section" server_name
+	config_get server_user "$section" server_user
+	config_get secret_key "$section" secret_key
+	config_get bind_addr "$section" bind_addr '127.0.0.1'
+	config_get bind_port "$section" bind_port
+	config_get use_encryption "$section" use_encryption 'false'
+	config_get use_compression "$section" use_compression 'false'
+	config_get keep_tunnel_open "$section" keep_tunnel_open 'false'
+	[ -n "$name" ] && [ -n "$server_name" ] && [ -n "$secret_key" ] && [ -n "$bind_port" ] || return
+	case "$type" in stcp|sudp|xtcp) ;; *) return ;; esac
+	write_line "[[visitors]]"
+	write_line "name = $(toml_quote "$name")"
+	write_line "type = $(toml_quote "$type")"
+	write_line "serverName = $(toml_quote "$server_name")"
+	[ -z "$server_user" ] || write_line "serverUser = $(toml_quote "$server_user")"
+	write_line "secretKey = $(toml_quote "$secret_key")"
+	write_line "bindAddr = $(toml_quote "$bind_addr")"
+	write_line "bindPort = $bind_port"
+	write_line "transport.useEncryption = $use_encryption"
+	write_line "transport.useCompression = $use_compression"
+	[ "$type" != 'xtcp' ] || write_line "keepTunnelOpen = $keep_tunnel_open"
+	write_line ''
+}
+
+generate_config() {
+	local enabled config_mode server_addr server_port user auth_mode token login_fail_exit tls_enable log_level log_max_days
+	config_load "$UCI_CONFIG"
+	config_get config_mode main config_mode 'uci'
+	if [ "$config_mode" = 'raw' ]; then
+		[ -s "$PERSIST_CONF" ] || { service_error "raw config is missing or empty: $PERSIST_CONF"; return 1; }
+		mkdir -p "${CONF%/*}"
+		cp "$PERSIST_CONF" "$CONF"
+		"$LOG_ENFORCER" "$CONF" || { service_error "failed to enforce frpc log settings"; return 1; }
+		chmod 0600 "$CONF"
+		return 0
+	fi
+	config_get enabled main enabled '0'
+	[ "$enabled" = '1' ] || { service_error 'frpc is disabled in UCI configuration'; return 1; }
+	config_get server_addr main server_addr
+	config_get server_port main server_port '7000'
+	config_get user main user
+	config_get auth_mode main auth_mode 'metadatas'
+	config_get token main token
+	config_get login_fail_exit main login_fail_exit 'true'
+	config_get tls_enable main tls_enable 'true'
+	config_get log_level main log_level 'info'
+	config_get log_max_days main log_max_days '3'
+	[ -n "$server_addr" ] && [ -n "$user" ] && [ -n "$token" ] || { service_error 'server_addr, user and token are required'; return 1; }
+	case "$auth_mode" in
+		metadatas|metadata)
+			auth_mode='metadatas'
+			;;
+		auth|token)
+			auth_mode='auth'
+			;;
+		*) service_error "invalid auth_mode: $auth_mode"; return 1 ;;
+	esac
+	mkdir -p "${CONF%/*}"
+	: > "$CONF"
+	write_line "serverAddr = $(toml_quote "$server_addr")"
+	write_line "serverPort = $server_port"
+	write_line "user = $(toml_quote "$user")"
+	if [ "$auth_mode" = 'metadatas' ]; then
+		write_line "metadatas.token = $(toml_quote "$token")"
+	else
+		write_line "auth.method = $(toml_quote 'token')"
+		write_line "auth.token = $(toml_quote "$token")"
+	fi
+	write_line "loginFailExit = $login_fail_exit"
+	write_line "transport.tls.enable = $tls_enable"
+	write_line "log.to = $(toml_quote '/var/log/frpc.log')"
+	write_line "log.level = $(toml_quote "$log_level")"
+	write_line "log.maxDays = $log_max_days"
+	write_line ''
+	config_foreach render_proxy proxy
+	config_foreach render_visitor visitor
+	chmod 0600 "$CONF"
+}
+
+start_service() {
+	[ -x "$PROG" ] || { service_error "frpc executable not found: $PROG"; return 1; }
+	generate_config || return 1
+	[ -s "$CONF" ] || { service_error "frpc runtime config is missing or empty: $CONF"; return 1; }
+	local verify_output
+	verify_output="$($PROG verify -c "$CONF" 2>&1)" || { service_error "configuration validation failed: $verify_output"; return 1; }
+	mkdir -p /var/log
+	procd_open_instance
+	procd_set_param command "$PROG" -c "$CONF"
+	procd_set_param stdout 1
+	procd_set_param stderr 1
+	procd_set_param respawn 3600 5 5
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "$UCI_CONFIG"
+}
