@@ -1,6 +1,10 @@
 # luci-app-frpc-own
 
 使用现代 LuCI JavaScript API 编写的 OpenWrt frpc 客户端管理插件。
+<img width="2522" height="1326" alt="image" src="https://github.com/user-attachments/assets/56ee222b-cc18-411d-a905-36aed64ce209" />
+<img width="2558" height="1276" alt="image" src="https://github.com/user-attachments/assets/8ce2198b-0a90-4c79-95a0-aa55681d6041" />
+<img width="2552" height="1282" alt="image" src="https://github.com/user-attachments/assets/8bfb12dc-cd8b-4af9-b910-935b0185709d" />
+<img width="2558" height="1274" alt="image" src="https://github.com/user-attachments/assets/e3fd9cca-a15e-40ac-8f2b-bfcf71c16f3f" />
 
 ## 功能
 
