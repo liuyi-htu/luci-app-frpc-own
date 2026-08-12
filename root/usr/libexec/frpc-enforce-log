@@ -1,0 +1,104 @@
+#!/bin/sh
+
+set -eu
+
+config="${1:-}"
+[ -n "$config" ] && [ -f "$config" ] || exit 2
+
+ram_dir=/tmp/frpc/enforce
+mkdir -p "$ram_dir" || exit 1
+chmod 0700 /tmp/frpc "$ram_dir" 2>/dev/null || true
+tmp="$(mktemp "$ram_dir/config.XXXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT INT TERM
+
+awk '
+{
+	line[NR] = $0
+	if ($0 ~ /^[[:space:]]*\[log\][[:space:]]*(#.*)?$/) has_log_table = 1
+}
+END {
+	in_table = 0
+	in_log = 0
+	root_written = 0
+	log_to = 0
+	log_level = 0
+	log_days = 0
+
+	for (i = 1; i <= NR; i++) {
+		current = line[i]
+		is_header = current ~ /^[[:space:]]*\[/
+
+		if (has_log_table) {
+			if (in_log && is_header) {
+				if (!log_to) print "to = \"/var/log/frpc.log\""
+				if (!log_level) print "level = \"info\""
+				if (!log_days) print "maxDays = 3"
+				in_log = 0
+			}
+			if (current ~ /^[[:space:]]*\[log\][[:space:]]*(#.*)?$/) {
+				in_log = 1
+				log_to = log_level = log_days = 0
+				print current
+				continue
+			}
+			if (!in_table && current ~ /^[[:space:]]*log\.(to|level|maxDays)[[:space:]]*=/) continue
+			if (in_log && current ~ /^[[:space:]]*to[[:space:]]*=/) {
+				if (!log_to) print "to = \"/var/log/frpc.log\""
+				log_to = 1
+				continue
+			}
+			if (in_log && current ~ /^[[:space:]]*level[[:space:]]*=/) {
+				if (!log_level) print current
+				log_level = 1
+				continue
+			}
+			if (in_log && current ~ /^[[:space:]]*maxDays[[:space:]]*=/) {
+				if (!log_days) print current
+				log_days = 1
+				continue
+			}
+			print current
+			if (is_header) in_table = 1
+			continue
+		}
+
+		if (!in_table && current ~ /^[[:space:]]*log\.to[[:space:]]*=/) {
+			if (!log_to) print "log.to = \"/var/log/frpc.log\""
+			log_to = 1
+			continue
+		}
+		if (!in_table && current ~ /^[[:space:]]*log\.level[[:space:]]*=/) {
+			if (!log_level) print current
+			log_level = 1
+			continue
+		}
+		if (!in_table && current ~ /^[[:space:]]*log\.maxDays[[:space:]]*=/) {
+			if (!log_days) print current
+			log_days = 1
+			continue
+		}
+		if (!root_written && is_header) {
+			if (!log_to) print "log.to = \"/var/log/frpc.log\""
+			if (!log_level) print "log.level = \"info\""
+			if (!log_days) print "log.maxDays = 3"
+			root_written = 1
+		}
+		print current
+		if (is_header) in_table = 1
+	}
+
+	if (has_log_table && in_log) {
+		if (!log_to) print "to = \"/var/log/frpc.log\""
+		if (!log_level) print "level = \"info\""
+		if (!log_days) print "maxDays = 3"
+	} else if (!has_log_table && !root_written) {
+		if (!log_to) print "log.to = \"/var/log/frpc.log\""
+		if (!log_level) print "log.level = \"info\""
+		if (!log_days) print "log.maxDays = 3"
+	}
+}
+' "$config" > "$tmp"
+
+chmod 0600 "$tmp"
+cat "$tmp" > "$config"
+chmod 0600 "$config"

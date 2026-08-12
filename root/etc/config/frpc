@@ -1,0 +1,24 @@
+config main 'main'
+	option enabled '0'
+	option config_mode 'uci'
+	option server_addr ''
+	option server_port '7000'
+	option user ''
+	option auth_mode 'metadatas'
+	option token ''
+	option login_fail_exit 'true'
+	option tls_enable 'true'
+	option log_level 'info'
+	option log_max_days '3'
+
+# auth_mode 可选：metadatas 或 auth。
+# metadatas 使用 frps 用户插件的独立客户端密钥；auth 使用 FRPS 全局 auth.token。
+# config_mode 可选：uci 或 raw。raw 使用 /etc/frp-stack/frpc.toml。
+
+config proxy 'ssh'
+	option name 'ssh'
+	option type 'tcp'
+	option local_ip '127.0.0.1'
+	option local_port '22'
+	option remote_port '20000'
+	option enabled '1'
