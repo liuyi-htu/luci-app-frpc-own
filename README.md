@@ -51,8 +51,9 @@ root/
 设备需要预先提供 `/usr/bin/frpc`。
 
 ## 编译到固件
+```sh
 git clone https://github.com/liuyi-htu/luci-app-frpc-own.git package/luci-app-frpc-own
-
+```
 ## SDK 构建
 将项目复制或链接到匹配目标的 SDK：
 
