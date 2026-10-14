@@ -1,64 +1,71 @@
 # luci-app-frpc-own
 
-使用现代 LuCI JavaScript API 编写的 OpenWrt frpc 客户端管理插件。
-<img width="2554" height="1250" alt="image" src="https://github.com/user-attachments/assets/8b0b9b8c-662b-47a3-b28f-9139a5e6e882" />
+A modern LuCI application for managing the FRP client on OpenWrt and ImmortalWrt.
 
-<img width="2558" height="1276" alt="image" src="https://github.com/user-attachments/assets/8ce2198b-0a90-4c79-95a0-aa55681d6041" />
-<img width="2552" height="1282" alt="image" src="https://github.com/user-attachments/assets/8bfb12dc-cd8b-4af9-b910-935b0185709d" />
-<img width="2558" height="1274" alt="image" src="https://github.com/user-attachments/assets/e3fd9cca-a15e-40ac-8f2b-bfcf71c16f3f" />
+The main package defaults to English, including on systems with the base LuCI Chinese language package installed. Install the optional `luci-i18n-frpc-own-zh-cn` package to enable Simplified Chinese when LuCI uses Chinese. Both packages remain at version **2.0.0-r1**.
 
-## 功能
+## Features
 
-- 查看、启动、停止 frpc，管理开机自启
-- 通过 UCI 管理 TCP、UDP、HTTP、HTTPS、STCP、SUDP、XTCP、TCPMUX 代理
-- 管理 STCP、SUDP、XTCP 访问者
-- 编辑、校验并原子替换 frpc TOML 配置
-- 查看和清空 frpc、更新日志
-- 在线更新或上传 `frpc`/`tar.gz` 更新
-- 运行中修改 UCI 配置由 procd reload trigger 自动应用；保存手动 TOML 时会停止并恢复服务
+- Start and stop frpc and manage autostart.
+- Manage TCP, UDP, HTTP, HTTPS, STCP, SUDP, XTCP, and TCPMUX proxies and private protocol visitors.
+- Save authentication separately; save proxies and visitors in their own editors.
+- View read-only runtime TOML. Opening the tab regenerates the preview from saved settings while stopped, and reads the active configuration while running.
+- Disable configuration and update controls while running, while allowing service shutdown and log viewing.
+- Read or clear frpc and update logs. Logs exceeding 512 KiB retain their latest 256 KiB; a procd worker checks every five seconds while running.
+- Update the core online or upload a `frpc` executable or archive. Only newer versions replace the existing executable.
+- Display messages using native LuCI dialogs and hide scrollbars without disabling scrolling.
 
-运行配置固定使用 `/var/log/frpc.log`。已有日志等级和保留天数会保留，缺失时使用 `info` 和 `3` 天。
+Backend logs are stored in English. The optional language package translates known application messages, update status, and update log messages in the browser.
 
-## 目录结构
+## Files
 
-```text
-Makefile
-htdocs/
-└── luci-static/resources/view/frpc/overview.js
-root/
-├── etc/
-│   ├── config/frpc
-│   └── init.d/frpc
-└── usr/
-    ├── libexec/
-    │   ├── frpc-enforce-log
-    │   ├── frpc-ui
-    │   └── frpc-update
-    └── share/
-        ├── luci/menu.d/luci-app-frpc-own.json
-        └── rpcd/acl.d/luci-app-frpc-own.json
-```
+| File | Purpose |
+| --- | --- |
+| `/etc/config/frpc` | Persistent UCI settings |
+| `/tmp/frpc/runtime/frpc.toml` | Generated runtime configuration |
+| `/var/log/frpc.log` | Client log |
+| `/var/log/update.log` | Update log |
 
+The device must provide `/usr/bin/frpc`. The application packages are architecture independent (`noarch`/`all`) and do not bundle the frpc executable.
 
-## 文件位置
+Source files are in `htdocs/` and `root/`. The Chinese catalog is `po/zh_Hans/frpc-own.po`; `po/templates/frpc-own.pot` contains its English template. All application translations use the private `frpc-own` context to keep English independent of the base LuCI catalogs.
 
-- UCI 配置：`/etc/config/frpc`
-- UCI 生成的运行配置：`/var/etc/frpc.toml`
-- 手动 TOML 配置：`/etc/frp-stack/frpc.toml`
-- frpc 日志：`/var/log/frpc.log`
-- 更新日志：`/var/log/update.log`
+## Firmware and SDK builds
 
-设备需要预先提供 `/usr/bin/frpc`。
+Add the repository to a matching firmware source tree:
 
-## 编译到固件
 ```sh
 git clone https://github.com/liuyi-htu/luci-app-frpc-own.git package/luci-app-frpc-own
+make menuconfig
+make package/luci-app-frpc-own/compile V=s
 ```
-## SDK 构建
-将项目复制或链接到匹配目标的 SDK：
+
+Select the application and, optionally, the Simplified Chinese translation package. With an existing SDK:
 
 ```sh
 make -C /path/to/openwrt-sdk package/luci-app-frpc-own/compile V=s
 ```
 
-构建产物位于 SDK 的 `bin/packages/<架构>/base/` 或对应 feed 目录。
+## Local builds
+
+```sh
+./build.sh
+```
+
+The script creates dedicated SDK copies under `.build-cache/` using the adjacent `luci-app-campus-connect/.toolchains/` directory as a read-only template. Set `FRPC_SDK_TEMPLATES` to use another directory containing the SDKs and `host-tools/bin/`.
+
+- ImmortalWrt 25.12.1, MediaTek Filogic SDK: APK packages.
+- ImmortalWrt 24.10.4, x86/64 SDK: IPK packages.
+
+Each build produces the English application and optional Chinese language package, with SHA256 files, in `dist/apk/` and `dist/ipk/`. Build logs and validation results are stored in `.build-logs/`. The build checks package versions, dependencies, scripts, translation coverage, and compiled Chinese catalogs.
+
+## Installation
+
+Install only the main package for English. Add the language package for Chinese:
+
+```sh
+apk add --allow-untrusted luci-app-frpc-own-2.0.0-r1.apk
+apk add --allow-untrusted luci-i18n-frpc-own-zh-cn-2.0.0-r1.apk
+```
+
+On IPK-based systems, use `opkg install` with the corresponding `_2.0.0-r1_all.ipk` files. Select Chinese in LuCI and reload the page after installing the translation package. Configuration is preserved during package upgrades.

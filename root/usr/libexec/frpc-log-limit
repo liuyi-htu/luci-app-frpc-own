@@ -1,0 +1,47 @@
+#!/bin/sh
+
+MAX_BYTES=524288
+KEEP_BYTES=262144
+WORK=/tmp/frpc/log-limit
+LOCKED=0
+
+trim_logs() {
+	local path size snapshot
+	mkdir -p "$WORK" || return 1
+	chmod 0700 "$WORK"
+	mkdir "$WORK/lock" 2>/dev/null || return 0
+	LOCKED=1
+	for path in /var/log/frpc.log /var/log/update.log; do
+		[ -f "$path" ] || continue
+		size="$(wc -c < "$path")"
+		[ "$size" -gt "$MAX_BYTES" ] || continue
+		snapshot="$WORK/tail.$$"
+		if tail -c "$KEEP_BYTES" "$path" > "$snapshot"; then
+			# Keep the same inode so the running logger can continue appending.
+			cat "$snapshot" > "$path"
+		fi
+		rm -f "$snapshot"
+	done
+	rmdir "$WORK/lock"
+	LOCKED=0
+}
+
+cleanup() {
+	rm -f "$WORK/tail.$$"
+	[ "$LOCKED" -eq 0 ] || rmdir "$WORK/lock" 2>/dev/null || true
+}
+
+case "${1:-trim}" in
+	trim)
+		trap cleanup EXIT INT TERM
+		trim_logs
+		;;
+	watch)
+		trap 'cleanup; exit 0' INT TERM
+		while :; do
+			trim_logs
+			sleep 5
+		done
+		;;
+	*) exit 2 ;;
+esac

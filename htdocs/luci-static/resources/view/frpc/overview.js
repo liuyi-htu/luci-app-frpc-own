@@ -4,17 +4,23 @@
 'require uci';
 'require fs';
 'require ui';
+'require rpc';
+'require poll';
+'require frpc.i18n as frpcI18n';
 
 var UI_HELPER = '/usr/libexec/frpc-ui';
-var CONFIG_UPLOAD = '/tmp/frpc/uploads/config-upload';
+var AUTH_UPLOAD = '/tmp/frpc/uploads/auth-upload.json';
 var FRPC_UPLOAD = '/tmp/frpc/uploads/frpc-upload.tar.gz';
 var UPDATE_POLL_INTERVAL = 1000;
 var UPDATE_RETRY_INTERVAL = 1000;
+var commitConfig = rpc.declare({
+	object: 'uci', method: 'commit', params: [ 'config' ], reject: true
+});
 
 function runCommand(args) {
 	return fs.exec(UI_HELPER, args).then(function(res) {
 		if (res.code !== 0)
-			throw new Error((res.stderr || res.stdout || _('命令执行失败')).trim());
+			throw new Error(frpcI18n.translate((res.stderr || res.stdout || _('Command failed', 'frpc-own')).trim()));
 		return res.stdout || '';
 	});
 }
@@ -24,26 +30,44 @@ function parseStatus(output) {
 	return {
 		running: fields[0] === '1',
 		enabled: fields[1] === '1',
-		version: fields[2] || _('未安装'),
-		mode: fields[3] === 'raw' ? 'raw' : 'uci'
+		version: frpcI18n.translate(fields[2]) || _('Not installed', 'frpc-own')
 	};
 }
 
+function showMessage(message, error) {
+	var editor = document.querySelector('#modal_overlay .modal.cbi-modal');
+	var previous = editor && document.body.classList.contains('modal-overlay-active') ? {
+		title: editor.querySelector('h4').textContent,
+		nodes: Array.prototype.slice.call(editor.childNodes, 1)
+	} : null;
+	ui.showModal(error ? _('Operation failed', 'frpc-own') : _('Notice', 'frpc-own'), [
+		E('p', {}, message),
+		E('div', { 'class': 'right' }, [
+			E('button', { 'type': 'button', 'class': 'btn cbi-button', 'click': function() {
+				if (previous) ui.showModal(previous.title, previous.nodes, 'cbi-modal');
+				else ui.hideModal();
+			} }, _('Close', 'frpc-own'))
+		])
+	]);
+}
+
 function notifyError(err) {
-	ui.addNotification(null, E('p', {}, (err && err.message) || String(err)), 'error');
+	if (err && err.frpcNotified) return;
+	showMessage(frpcI18n.translate((err && err.message) || String(err)), true);
+	if (err && typeof err === 'object') err.frpcNotified = true;
 }
 
 function notify(message) {
-	ui.addNotification(null, E('p', {}, message));
+	showMessage(frpcI18n.translate(message), false);
 }
 
 function validateName(sectionId, value) {
 	return /^[A-Za-z0-9._-]{1,64}$/.test(value || '') ||
-		_('只能使用 1-64 位字母、数字、点、下划线或横线。');
+		_('Use 1-64 letters, digits, dots, underscores, or hyphens.', 'frpc-own');
 }
 
 function validateNoWhitespace(sectionId, value) {
-	return value && !/[\x00-\x20\x7f]/.test(value) || _('不能为空且不能包含空白字符。');
+	return value && !/[\x00-\x20\x7f]/.test(value) || _('This field is required and must not contain whitespace.', 'frpc-own');
 }
 
 return view.extend({
@@ -51,40 +75,174 @@ return view.extend({
 		return Promise.all([
 			uci.load('frpc'),
 			L.resolveDefault(runCommand([ 'status' ]), ''),
-			L.resolveDefault(runCommand([ 'read-config' ]), '')
+			L.resolveDefault(runCommand([ 'read-runtime-config' ]), '')
 		]);
 	},
 
+	updateControls: function() {
+		var self = this;
+		var busy = this.saving || this.mapSaving || this.serviceBusy;
+		var blocked = !this.statusKnown || this.running || busy || this.formReadonly;
+		document.querySelectorAll('[data-frpc-save], #frpc-page button:not([data-frpc-readonly-action]):not(#frpc-service-toggle)').forEach(function(button) {
+			button.disabled = !!blocked || button.dataset.frpcBusy === '1' || button.classList.contains('spinning');
+			button.title = blocked ? _('Stop frpc before making changes.', 'frpc-own') : '';
+		});
+		var serviceButton = document.getElementById('frpc-service-toggle');
+		if (serviceButton) serviceButton.disabled = !!busy || !!self.formReadonly || !self.statusKnown;
+	},
+
+	assertStopped: function() {
+		return this.refreshStatus().then(function(status) {
+			if (status.running) throw new Error(_('frpc is running. Stop the service before saving configuration.', 'frpc-own'));
+		});
+	},
+
+	guardMap: function(map) {
+		var self = this;
+		var save = map.save;
+		map.save = function(callback) {
+			map.frpcSaved = false;
+			if (self.mapSaving || self.serviceBusy) return Promise.reject(new Error(_('An operation is in progress. Try saving again later.', 'frpc-own')));
+			self.mapSaving = true;
+			self.updateControls();
+			return self.assertStopped().then(function() {
+				return save.call(map, function() {
+					return self.assertStopped().then(function() {
+						uci.set('frpc', 'main', 'enabled', '1');
+						if (callback) return callback();
+					});
+				}, true);
+			}).then(function() {
+				return self.assertStopped();
+			}).then(function() {
+				return commitConfig('frpc');
+			}).then(function() {
+				return ui.changes.init();
+			}).then(function() {
+				return self.refreshStatus();
+			}).then(function() {
+				map.frpcSaved = true;
+				if (!map.parent) notify(_('Proxy configuration saved.', 'frpc-own'));
+			}).catch(function(err) { notifyError(err); throw err; }).finally(function() {
+				self.mapSaving = false;
+				self.updateControls();
+			});
+		};
+	},
+	configureGrid: function(grid) {
+		var self = this;
+		var renderModal = grid.renderMoreOptionsModal;
+		var saveModal = grid.handleModalSave;
+		var remove = grid.handleRemove;
+		grid.handleRemove = function(sectionId, ev) {
+			var section = this;
+			return self.assertStopped().then(function() { return remove.call(section, sectionId, ev); }).catch(notifyError);
+		};
+		grid.handleModalSave = function(modalMap, ev) {
+			return saveModal.call(this, modalMap, ev).then(function() {
+				if (modalMap.frpcSaved) notify(_('Proxy configuration saved.', 'frpc-own'));
+			});
+		};
+		var rowActions = grid.renderRowActions;
+		grid.renderRowActions = function() {
+			var node = rowActions.apply(this, arguments);
+			node.querySelectorAll('.cbi-button-edit').forEach(function(button) {
+				button.textContent = _('Edit', 'frpc-own');
+				button.title = _('Edit', 'frpc-own');
+			});
+			return node;
+		};
+		var headers = grid.renderHeaderRows;
+		grid.renderHeaderRows = function() {
+			var node = headers.apply(this, arguments);
+			if (this.sectiontitle) node.querySelectorAll('.cbi-section-table-titles > th:first-child').forEach(function(cell) {
+				cell.textContent = _('Name', 'frpc-own');
+			});
+			return node;
+		};
+		grid.renderSectionPlaceholder = function() { return E('em', {}, _('No entries yet', 'frpc-own')); };
+		grid.editbtntitle = _('Edit', 'frpc-own');
+		grid.delbtntitle = _('Delete', 'frpc-own');
+		grid.addModalOptions = function(modalSection) { self.guardMap(modalSection.map); };
+		grid.renderMoreOptionsModal = function(sectionId, ev) {
+			var section = this;
+			return self.assertStopped().then(function() {
+				return renderModal.call(section, sectionId, ev);
+			}).then(function() {
+				var button = document.querySelector('#modal_overlay .button-row .cbi-button-positive');
+				if (button) {
+					button.setAttribute('data-frpc-save', 'entry');
+					button.textContent = _('Save', 'frpc-own');
+				}
+				var cancel = document.querySelector('#modal_overlay .button-row > button');
+				if (cancel) cancel.textContent = _('Cancel', 'frpc-own');
+				self.updateControls();
+			});
+		};
+	},
+
+	saveAuthentication: function(options) {
+		var self = this;
+		if (self.saving || self.mapSaving || self.serviceBusy) return Promise.resolve();
+		self.saving = true;
+		self.updateControls();
+		return self.assertStopped().then(function() {
+			var values = {};
+			options.forEach(function(option) {
+				var value = option.formvalue('main');
+				if (!option.isValid('main') || value == null || value === '')
+					throw new Error(option.title + ': ' + (option.getValidationError('main') || _('This field is required.', 'frpc-own')));
+				values[option.option] = value;
+			});
+			return fs.write(AUTH_UPLOAD, JSON.stringify(values), 384);
+		}).then(function() {
+			return runCommand([ 'save-auth' ]);
+		}).then(function(message) {
+			notify(message.trim() || _('Authentication saved.', 'frpc-own'));
+			return self.refreshStatus();
+		}).catch(notifyError).finally(function() {
+			self.saving = false;
+			self.updateControls();
+		});
+	},
+
 	refreshStatus: function() {
+		var self = this;
 		return runCommand([ 'status' ]).then(function(output) {
+			if (!/^[01]\t[01]\t/.test(output)) throw new Error(_('Unable to read frpc service status.', 'frpc-own'));
 			var status = parseStatus(output);
+			self.running = status.running;
+			self.statusKnown = true;
+			self.updateControls();
 			var running = document.getElementById('frpc-running-status');
 			var enabled = document.getElementById('frpc-enabled-status');
 			var version = document.getElementById('frpc-version-status');
-			var mode = document.getElementById('frpc-mode-status');
 			var serviceButton = document.getElementById('frpc-service-toggle');
 			var enableButton = document.getElementById('frpc-enable-toggle');
 
 			if (running) {
-				running.textContent = status.running ? _('运行中') : _('已停止');
+				running.textContent = status.running ? _('Running', 'frpc-own') : _('Stopped', 'frpc-own');
 				running.className = status.running ? 'frpc-ok' : 'frpc-bad';
 			}
 			if (enabled) {
-				enabled.textContent = status.enabled ? _('已启用') : _('未启用');
+				enabled.textContent = status.enabled ? _('Enabled', 'frpc-own') : _('Disabled', 'frpc-own');
 				enabled.className = status.enabled ? 'frpc-ok' : 'frpc-bad';
 			}
 			if (version) version.textContent = status.version;
-			if (mode) mode.textContent = status.mode === 'raw' ? _('手动 TOML') : _('UCI 自动生成');
 			if (serviceButton) {
 				serviceButton.dataset.running = status.running ? '1' : '0';
-				serviceButton.textContent = status.running ? _('停止服务') : _('启动服务');
+				serviceButton.textContent = status.running ? _('Stop service', 'frpc-own') : _('Start service', 'frpc-own');
 				serviceButton.className = status.running ? 'btn cbi-button-negative' : 'btn cbi-button-action important';
 			}
 			if (enableButton) {
 				enableButton.dataset.enabled = status.enabled ? '1' : '0';
-				enableButton.textContent = status.enabled ? _('关闭开机自启') : _('启用开机自启');
+				enableButton.textContent = status.enabled ? _('Disable autostart', 'frpc-own') : _('Enable autostart', 'frpc-own');
 			}
 			return status;
+		}).catch(function(err) {
+			self.statusKnown = false;
+			self.updateControls();
+			throw err;
 		});
 	},
 
@@ -97,14 +255,21 @@ return view.extend({
 			'data-running': initialStatus.running ? '1' : '0',
 			'click': function(ev) {
 				var button = ev.currentTarget;
+				if (self.saving || self.mapSaving || self.serviceBusy) return;
+				self.serviceBusy = true;
+				self.updateControls();
 				var action = button.dataset.running === '1' ? 'stop' : 'start';
 				button.disabled = true;
 				return runCommand([ 'service', action ]).then(function() {
-					notify(action === 'start' ? _('frpc 已启动。') : _('frpc 已停止。'));
+					notify(action === 'start' ? _('frpc started.', 'frpc-own') : _('frpc stopped.', 'frpc-own'));
 					return self.refreshStatus();
-				}).catch(notifyError).finally(function() { button.disabled = false; });
+				}).catch(notifyError).finally(function() {
+					self.serviceBusy = false;
+					self.updateControls();
+					button.disabled = false;
+				});
 			}
-		}, initialStatus.running ? _('停止服务') : _('启动服务'));
+		}, initialStatus.running ? _('Stop service', 'frpc-own') : _('Start service', 'frpc-own'));
 
 		var enableButton = E('button', {
 			'type': 'button',
@@ -113,68 +278,70 @@ return view.extend({
 			'data-enabled': initialStatus.enabled ? '1' : '0',
 			'click': function(ev) {
 				var button = ev.currentTarget;
+				if (button.disabled) return;
+				button.dataset.frpcBusy = '1';
 				var action = button.dataset.enabled === '1' ? 'disable' : 'enable';
 				button.disabled = true;
 				return runCommand([ 'service', action ]).then(function() {
-					notify(action === 'enable' ? _('已启用开机自启。') : _('已关闭开机自启。'));
+					notify(action === 'enable' ? _('Autostart enabled.', 'frpc-own') : _('Autostart disabled.', 'frpc-own'));
 					return self.refreshStatus();
-				}).catch(notifyError).finally(function() { button.disabled = false; });
+				}).catch(notifyError).finally(function() {
+					button.dataset.frpcBusy = '0';
+					self.updateControls();
+				});
 			}
-		}, initialStatus.enabled ? _('关闭开机自启') : _('启用开机自启'));
+		}, initialStatus.enabled ? _('Disable autostart', 'frpc-own') : _('Enable autostart', 'frpc-own'));
 
 		return E('div', { 'class': 'frpc-status-scroll' }, [
 			E('div', { 'class': 'frpc-status-row' }, [
-				E('span', {}, [ _('服务状态') + '：', E('strong', {
+				E('span', {}, [ _('Service status', 'frpc-own') + ': ', E('strong', {
 					'id': 'frpc-running-status',
 					'class': initialStatus.running ? 'frpc-ok' : 'frpc-bad'
-				}, initialStatus.running ? _('运行中') : _('已停止')) ]),
-				E('span', {}, [ _('开机自启') + '：', E('strong', {
+				}, initialStatus.running ? _('Running', 'frpc-own') : _('Stopped', 'frpc-own')) ]),
+				E('span', {}, [ _('Autostart', 'frpc-own') + ': ', E('strong', {
 					'id': 'frpc-enabled-status',
 					'class': initialStatus.enabled ? 'frpc-ok' : 'frpc-bad'
-				}, initialStatus.enabled ? _('已启用') : _('未启用')) ]),
-				E('span', {}, [ _('版本') + '：', E('strong', { 'id': 'frpc-version-status' }, initialStatus.version) ]),
-				E('span', {}, [ _('配置模式') + '：', E('strong', { 'id': 'frpc-mode-status' },
-					initialStatus.mode === 'raw' ? _('手动 TOML') : _('UCI 自动生成')) ]),
+				}, initialStatus.enabled ? _('Enabled', 'frpc-own') : _('Disabled', 'frpc-own')) ]),
+				E('span', {}, [ _('Version', 'frpc-own') + ': ', E('strong', { 'id': 'frpc-version-status' }, initialStatus.version) ]),
+
 				serviceButton,
 				enableButton
 			])
 		]);
 	},
 
-	renderRawConfig: function(content) {
-		var textarea = E('textarea', {
-			'id': 'frpc-raw-config',
+	renderRuntimeConfig: function(content) {
+		return E('textarea', {
+			'id': 'frpc-runtime-config',
 			'class': 'cbi-input-textarea frpc-config',
-			'spellcheck': 'false'
-		}, content || '');
+			'readonly': true,
+			'spellcheck': 'false',
+			'wrap': 'off',
+			'aria-label': _('Runtime configuration', 'frpc-own'),
+			'placeholder': _('No runtime configuration is available.', 'frpc-own')
+		}, this.runtimeConfigContent != null ? this.runtimeConfigContent : (content || ''));
+	},
 
-		return E('div', {}, [
-			E('p', { 'class': 'frpc-note' }, _('保存后会校验 TOML，并切换到手动配置文件模式。日志路径会强制设为 /var/log/frpc.log。')),
-			textarea,
-			E('div', { 'class': 'cbi-page-actions' }, [
-				E('button', {
-					'type': 'button',
-					'class': 'btn cbi-button-apply important',
-					'click': function(ev) {
-						var button = ev.currentTarget;
-						var value = textarea.value.replace(/\r\n/g, '\n');
-						if (!value.trim()) {
-							notifyError(new Error(_('配置文件不能为空。')));
-							return;
-						}
-						button.disabled = true;
-						return fs.write(CONFIG_UPLOAD, value, 384).then(function() {
-							return runCommand([ 'save-config' ]);
-						}).then(function(message) {
-							notify(message.trim() || _('配置文件已保存。'));
-							return runCommand([ 'read-config' ]);
-						}).then(function(normalized) {
-							textarea.value = normalized;
-						}).catch(notifyError).finally(function() { button.disabled = false; });
-					}
-				}, _('校验并保存配置文件'))
-			])
-		]);
+	refreshRuntimeConfig: function() {
+		var self = this;
+		var textarea = document.getElementById('frpc-runtime-config');
+		if (textarea) {
+			textarea.value = '';
+			textarea.placeholder = _('Synchronizing runtime configuration...', 'frpc-own');
+		}
+		return runCommand([ 'read-runtime-config' ]).then(function(content) {
+			self.runtimeConfigContent = content;
+			var current = document.getElementById('frpc-runtime-config');
+			if (current) {
+				current.value = content;
+				current.placeholder = _('No runtime configuration is available.', 'frpc-own');
+			}
+		}).catch(function(err) {
+			self.runtimeConfigContent = '';
+			var current = document.getElementById('frpc-runtime-config');
+			if (current) current.placeholder = _('Failed to read runtime configuration.', 'frpc-own');
+			throw err;
+		});
 	},
 
 	renderLogs: function() {
@@ -186,13 +353,13 @@ return view.extend({
 			E('option', { 'value': 'frpc' }, 'frpc.log'),
 			E('option', { 'value': 'update' }, 'update.log')
 		]);
-		var output = E('pre', { 'id': 'frpc-log-output', 'class': 'frpc-log' }, _('点击“刷新日志”读取日志。'));
+		var output = E('pre', { 'id': 'frpc-log-output', 'class': 'frpc-log' }, _('Click Refresh log to read the log.', 'frpc-own'));
 
 		function refresh() {
 			return runCommand([ 'read-log', kind.value ]).then(function(content) {
-				var normalized = (content || '').replace(/\n$/, '');
+				var normalized = frpcI18n.logText(content || '').replace(/\n$/, '');
 				var lines = normalized ? normalized.split('\n').slice(-50) : [];
-				output.textContent = lines.length ? lines.join('\n') : _('暂无日志。');
+				output.textContent = lines.length ? lines.join('\n') : _('No log entries.', 'frpc-own');
 				output.scrollTop = output.scrollHeight;
 			});
 		}
@@ -202,19 +369,20 @@ return view.extend({
 			E('div', { 'class': 'frpc-actions' }, [
 				kind,
 				E('button', {
-					'type': 'button', 'class': 'btn cbi-button-action',
+					'type': 'button', 'class': 'btn cbi-button-action', 'data-frpc-readonly-action': '1',
 					'click': function() { return refresh().catch(notifyError); }
-				}, _('刷新日志')),
+				}, _('Refresh log', 'frpc-own')),
 				E('button', {
 					'type': 'button', 'class': 'btn cbi-button-negative',
 					'click': function() {
-						if (!confirm(_('确认清空当前日志？'))) return;
-						return runCommand([ 'clear-log', kind.value ]).then(function() {
-							output.textContent = _('暂无日志。');
-							notify(_('日志已清空。'));
+						var selectedKind = kind.value;
+						if (!confirm(_('Clear the selected log?', 'frpc-own'))) return;
+						return runCommand([ 'clear-log', selectedKind ]).then(function() {
+							if (kind.value === selectedKind) output.textContent = _('No log entries.', 'frpc-own');
+							notify(_('Log cleared.', 'frpc-own'));
 						}).catch(notifyError);
 					}
-				}, _('清空日志'))
+				}, _('Clear log', 'frpc-own'))
 			]),
 			output
 		]);
@@ -231,9 +399,16 @@ return view.extend({
 			'aria-valuemax': '100',
 			'aria-valuenow': '0'
 		}, [ progressFill ]);
-		var progressText = E('span', { 'id': 'frpc-update-progress-text' }, _('尚未开始更新。'));
+		var progressText = E('span', { 'id': 'frpc-update-progress-text' }, _('No update has started.', 'frpc-own'));
 		var onlineButton;
 		var uploadButton;
+
+		function setUpdateBusy(busy) {
+			[ onlineButton, uploadButton ].forEach(function(button) {
+				if (button) button.dataset.frpcBusy = busy ? '1' : '0';
+			});
+			self.updateControls();
+		}
 
 		function parseUpdateStatus(output) {
 			var fields = (output || '').trim().split('\t');
@@ -241,7 +416,7 @@ return view.extend({
 			return {
 				state: fields[0] || 'idle',
 				percent: isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0,
-				message: fields.slice(2).join('\t') || _('尚未开始更新。')
+				message: frpcI18n.translate(fields.slice(2).join('\t')) || _('No update has started.', 'frpc-own')
 			};
 		}
 
@@ -261,8 +436,7 @@ return view.extend({
 				progressText.textContent = '%d%% · %s'.format(status.percent, status.message);
 				progressText.className = status.state === 'error' ? 'frpc-bad' :
 					(status.state === 'success' ? 'frpc-ok' : '');
-				if (onlineButton) onlineButton.disabled = status.state === 'running';
-				if (uploadButton) uploadButton.disabled = status.state === 'running';
+				setUpdateBusy(status.state === 'running');
 
 				if (status.state === 'running') {
 					self.updateProgressPolling = true;
@@ -278,7 +452,7 @@ return view.extend({
 				if (!self.updateProgressPolling)
 					throw err;
 				progressText.className = '';
-				progressText.textContent = _('正在重新读取更新状态…');
+				progressText.textContent = _('Reading update status again...', 'frpc-own');
 				scheduleProgressRefresh(UPDATE_RETRY_INTERVAL);
 				return null;
 			});
@@ -290,12 +464,12 @@ return view.extend({
 				return L.resolveDefault(refreshProgress(), null).then(function(status) {
 					if (status && status.state !== 'idle') return;
 					self.updateProgressPolling = false;
-					button.disabled = false;
+					setUpdateBusy(false);
 					notifyError(err);
 				});
 			}
 			self.updateProgressPolling = false;
-			button.disabled = false;
+			setUpdateBusy(false);
 			notifyError(err);
 		}
 		this.refreshUpdateProgress = refreshProgress;
@@ -303,31 +477,33 @@ return view.extend({
 		onlineButton = E('button', {
 			'type': 'button', 'class': 'btn cbi-button-apply important',
 			'click': function(ev) {
-				if (!confirm(_('确认启动在线更新检查？'))) return;
 				var button = ev.currentTarget;
-				button.disabled = true;
+				if (!confirm(_('Check for online updates?', 'frpc-own'))) return;
+				if (button.disabled) return;
+				setUpdateBusy(true);
 				self.updateProgressPolling = true;
 				progressFill.style.width = '1%';
 				progress.setAttribute('aria-valuenow', '1');
 				progressText.className = '';
-				progressText.textContent = _('1% · 正在启动在线更新任务…');
+				progressText.textContent = _('1% · Starting online update...', 'frpc-own');
 				scheduleProgressRefresh(UPDATE_POLL_INTERVAL);
 				return runCommand([ 'update-online' ]).then(function(message) {
 					notify(message.trim());
 					return refreshProgress();
 				}).catch(function(err) { return handleUpdateStartError(err, button); });
 			}
-		}, _('在线更新'));
+		}, _('Online update', 'frpc-own'));
 
 		uploadButton = E('button', {
 			'type': 'button', 'class': 'btn cbi-button-action',
 			'click': function(ev) {
 				var button = ev.currentTarget;
-				button.disabled = true;
+				if (button.disabled) return;
+				setUpdateBusy(true);
 				return ui.uploadFile(FRPC_UPLOAD).then(function(reply) {
 					if (reply.size > 64 * 1024 * 1024) {
 						return fs.remove(FRPC_UPLOAD).then(function() {
-							throw new Error(_('上传文件不能超过 64 MiB。'));
+							throw new Error(_('The uploaded file must not exceed 64 MiB.', 'frpc-own'));
 						});
 					}
 					self.updateProgressPolling = true;
@@ -339,16 +515,15 @@ return view.extend({
 				}).catch(function(err) {
 					if (/cancel/i.test((err && err.message) || '')) {
 						self.updateProgressPolling = false;
-						button.disabled = false;
+						setUpdateBusy(false);
 						return;
 					}
 					return handleUpdateStartError(err, button);
 				});
 			}
-		}, _('上传 frpc 或 tar.gz'));
+		}, _('Upload frpc or tar.gz', 'frpc-own'));
 
 		return E('div', {}, [
-			E('p', { 'class': 'frpc-note' }, _('在线更新和本地上传都会比较版本，只有候选版本更高时才会替换。')),
 			E('div', { 'class': 'frpc-update-status' }, [ progress, progressText ]),
 			E('div', { 'class': 'frpc-actions' }, [
 				onlineButton,
@@ -360,149 +535,198 @@ return view.extend({
 	render: function(data) {
 		var self = this;
 		var initialStatus = parseStatus(data[1]);
-		var m = new form.Map('frpc', _('frp 客户端'));
-		var s, ss, o;
+		var m = new form.Map('frpc');
+		m.data = Object.create(uci);
+		m.data.move = function() {
+			if (!self.statusKnown || self.running || self.saving || self.mapSaving || self.serviceBusy) {
+				notifyError(new Error(_('Stop frpc before reordering proxies.', 'frpc-own')));
+				return false;
+			}
+			var moved = uci.move.apply(uci, arguments);
+			if (moved) {
+				window.clearTimeout(self.proxyOrderTimer);
+				self.proxyOrderTimer = window.setTimeout(function() { m.save().catch(notifyError); }, 250);
+			}
+			return moved;
+		};
+		self.running = initialStatus.running;
+		self.statusKnown = /^[01]\t[01]\t/.test(data[1] || '');
+		self.guardMap(m);
+		var renderContents = m.renderContents;
+		m.renderContents = function() {
+			return renderContents.call(m).then(function(rendered) {
+				[ [ 'config', 'refreshRuntimeConfig' ], [ 'logs', 'refreshLogs' ], [ 'update', 'refreshUpdateProgress' ] ].forEach(function(tab) {
+					var pane = rendered.querySelector('[data-tab="' + tab[0] + '"][data-tab-title]');
+					if (pane) pane.addEventListener('cbi-tab-active', function() {
+						if (self[tab[1]]) self[tab[1]]().catch(notifyError);
+					});
+				});
+				self.formReadonly = m.readonly;
+				window.requestAnimationFrame(function() { self.updateControls(); });
+				return rendered;
+			});
+		};
+		var s, ss, o, proxies, visitors;
 		function validateEntryName(sectionId, value) {
 			var valid = validateName(sectionId, value);
 			if (valid !== true) return valid;
 			var type = this.section.formvalue(sectionId, 'type') || '';
 			if (type === 'tcpudp' && value.length > 60)
-				return _('TCP + UDP 代理的基础名称不能超过 60 位。');
+				return _('The base name of a TCP + UDP proxy must not exceed 60 characters.', 'frpc-own');
 			var wantedNames = type === 'tcpudp' ? [ value + '_tcp', value + '_udp' ] : [ value ];
 			var duplicate = uci.sections('frpc').some(function(section) {
 				return section['.name'] !== sectionId &&
 					(section['.type'] === 'proxy' || section['.type'] === 'visitor') &&
 					wantedNames.indexOf(section.name) !== -1;
 			});
-			return !duplicate || _('代理和访问者名称不能重复。');
+			return !duplicate || _('Proxy and visitor names must be unique.', 'frpc-own');
 		}
 
 		s = m.section(form.NamedSection, 'main', 'main');
 		s.addremove = false;
-		s.tab('basic', _('代理设置'));
-		s.tab('config', _('配置文件'));
-		s.tab('logs', _('日志'));
-		s.tab('update', _('更新 frpc'));
+		s.tab('basic', _('Proxy settings', 'frpc-own'));
+		s.tab('config', _('Runtime configuration', 'frpc-own'));
+		s.tab('logs', _('Logs', 'frpc-own'));
+		s.tab('update', _('Update core', 'frpc-own'));
 
 		o = s.taboption('basic', form.DummyValue, '_auth_title');
 		o.render = function() {
-			return E('h3', { 'class': 'cbi-section-title' }, _('认证信息'));
+			return E('h3', { 'class': 'cbi-section-title' }, _('Authentication', 'frpc-own'));
 		};
 
-		o = s.taboption('basic', form.Value, 'server_addr', _('服务器地址'));
+		o = s.taboption('basic', form.Value, 'server_addr', _('Server address', 'frpc-own'));
 		o.rmempty = false;
 		o.validate = validateNoWhitespace;
 
-		o = s.taboption('basic', form.Value, 'server_port', _('服务器端口'));
+		o = s.taboption('basic', form.Value, 'server_port', _('Server port', 'frpc-own'));
 		o.datatype = 'port';
 		o.default = '7000';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.Value, 'user', _('用户'));
+		o = s.taboption('basic', form.Value, 'user', _('User', 'frpc-own'));
 		o.rmempty = false;
 		o.validate = function(sectionId, value) {
-			return value && value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || _('不能为空、不能包含控制字符且不能超过 64 位。');
+			return value && value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || _('This field is required, must not contain control characters, and must not exceed 64 characters.', 'frpc-own');
 		};
 
-		o = s.taboption('basic', form.ListValue, 'auth_mode', _('认证方式'));
-		o.value('metadatas', _('metadatas.token（用户独立密钥）'));
-		o.value('auth', _('auth.token（全局 Token）'));
+		o = s.taboption('basic', form.ListValue, 'auth_mode', _('Authentication method', 'frpc-own'));
+		o.value('metadatas', _('metadatas.token (per-user key)', 'frpc-own'));
+		o.value('auth', _('auth.token (global token)', 'frpc-own'));
 		o.default = 'metadatas';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.Value, 'token', _('Token'));
+		o = s.taboption('basic', form.Value, 'token', _('Token', 'frpc-own'));
 		o.password = true;
 		o.rmempty = false;
 		o.validate = function(sectionId, value) {
-			return value && !/[\x00-\x1f\x7f]/.test(value) || _('不能为空且不能包含控制字符。');
+			return value && !/[\x00-\x1f\x7f]/.test(value) || _('This field is required and must not contain control characters.', 'frpc-own');
 		};
 
-		o = s.taboption('basic', form.Flag, 'tls_enable', _('启用 TLS'));
+		o = s.taboption('basic', form.Flag, 'tls_enable', _('Enable TLS', 'frpc-own'));
 		o.enabled = 'true';
 		o.disabled = 'false';
 		o.default = 'true';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.Flag, 'login_fail_exit', _('登录失败退出'));
+		o = s.taboption('basic', form.Flag, 'login_fail_exit', _('Exit on login failure', 'frpc-own'));
 		o.enabled = 'true';
 		o.disabled = 'false';
 		o.default = 'true';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.ListValue, 'log_level', _('日志等级'));
+		o = s.taboption('basic', form.ListValue, 'log_level', _('Log level', 'frpc-own'));
 	[ 'trace', 'debug', 'info', 'warn', 'error' ].forEach(function(level) { o.value(level, level); });
 		o.default = 'info';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.Value, 'log_max_days', _('日志保留天数'));
+		o = s.taboption('basic', form.Value, 'log_max_days', _('Log retention (days)', 'frpc-own'));
 		o.datatype = 'range(0,3650)';
 		o.default = '3';
 		o.rmempty = false;
 
-		o = s.taboption('basic', form.SectionValue, '_proxies', form.GridSection, 'proxy', _('代理管理'));
+		var authOptions = s.children.filter(function(option) { return option.option !== '_auth_title'; });
+		o = s.taboption('basic', form.DummyValue, '_save_auth');
+		o.render = function() {
+			return E('div', { 'class': 'frpc-actions frpc-auth-actions' }, [
+				E('button', {
+					'type': 'button',
+					'class': 'btn cbi-button-apply important',
+					'data-frpc-save': 'auth',
+					'disabled': !self.statusKnown || self.running || self.saving || self.mapSaving || self.serviceBusy,
+					'click': function() { return self.saveAuthentication(authOptions); }
+				}, _('Save authentication', 'frpc-own'))
+			]);
+		};
+
+		o = s.taboption('basic', form.SectionValue, '_proxies', form.GridSection, 'proxy', _('Proxies', 'frpc-own'));
 		ss = o.subsection;
+		proxies = ss;
+		self.configureGrid(ss);
 		ss.anonymous = true;
 		ss.addremove = true;
 		ss.sortable = true;
-		ss.addbtntitle = _('添加代理');
+		ss.addbtntitle = _('Add proxy', 'frpc-own');
 		ss.handleAdd = function(ev) {
-			var configName = this.uciconfig || this.map.config;
-			var sectionId = uci.add(configName, this.sectiontype);
-			uci.set(configName, sectionId, 'enabled', '1');
-			m.addedSection = sectionId;
-			return this.renderMoreOptionsModal(sectionId);
+			var section = this;
+			return self.assertStopped().then(function() {
+				var configName = section.uciconfig || section.map.config;
+				var sectionId = uci.add(configName, section.sectiontype);
+				uci.set(configName, sectionId, 'enabled', '1');
+				m.addedSection = sectionId;
+				return section.renderMoreOptionsModal(sectionId);
+			}).catch(notifyError);
 		};
 
-		o = ss.option(form.Value, 'name', _('名称'));
+		o = ss.option(form.Value, 'name', _('Name', 'frpc-own'));
 		o.rmempty = false;
 		o.validate = validateEntryName;
 
-		o = ss.option(form.ListValue, 'type', _('类型'));
+		o = ss.option(form.ListValue, 'type', _('Type', 'frpc-own'));
 		o.value('tcpudp', 'TCP + UDP');
 	[ 'tcp', 'udp', 'http', 'https', 'stcp', 'sudp', 'xtcp', 'tcpmux' ].forEach(function(type) { o.value(type, type.toUpperCase()); });
 		o.default = 'tcp';
 		o.rmempty = false;
 
-		o = ss.option(form.Value, 'local_ip', _('本地地址'));
+		o = ss.option(form.Value, 'local_ip', _('Local address', 'frpc-own'));
 		o.default = '127.0.0.1';
 		o.rmempty = false;
 		o.validate = validateNoWhitespace;
 
-		o = ss.option(form.Value, 'local_port', _('本地端口'));
+		o = ss.option(form.Value, 'local_port', _('Local port', 'frpc-own'));
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = ss.option(form.Value, 'remote_port', _('远程端口'));
+		o = ss.option(form.Value, 'remote_port', _('Remote port', 'frpc-own'));
 		o.datatype = 'port';
 		o.depends('type', 'tcp');
 		o.depends('type', 'udp');
 		o.depends('type', 'tcpudp');
 		o.rmempty = false;
 
-		o = ss.option(form.Value, 'custom_domains', _('自定义域名'));
+		o = ss.option(form.Value, 'custom_domains', _('Custom domains', 'frpc-own'));
 		o.modalonly = true;
-		o.placeholder = _('多个域名用英文逗号分隔');
+		o.placeholder = _('Separate multiple domains with commas', 'frpc-own');
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.depends('type', 'tcpmux');
 		o.validate = function(sectionId, value) {
 			var subdomain = this.section.formvalue(sectionId, 'subdomain') || '';
-			if (!value && !subdomain) return _('自定义域名和子域名至少填写一项。');
-			return !/[\x00-\x20\x7f]/.test(value || '') || _('域名不能包含空白字符。');
+			if (!value && !subdomain) return _('Specify at least one custom domain or subdomain.', 'frpc-own');
+			return !/[\x00-\x20\x7f]/.test(value || '') || _('Domains must not contain whitespace.', 'frpc-own');
 		};
 
-		o = ss.option(form.Value, 'subdomain', _('子域名'));
+		o = ss.option(form.Value, 'subdomain', _('Subdomain', 'frpc-own'));
 		o.modalonly = true;
 		o.depends('type', 'http');
 		o.depends('type', 'https');
 		o.depends('type', 'tcpmux');
 		o.validate = function(sectionId, value) {
 			var domains = this.section.formvalue(sectionId, 'custom_domains') || '';
-			if (!value && !domains) return _('自定义域名和子域名至少填写一项。');
-			return !/[\x00-\x20\x7f]/.test(value || '') || _('子域名不能包含空白字符。');
+			if (!value && !domains) return _('Specify at least one custom domain or subdomain.', 'frpc-own');
+			return !/[\x00-\x20\x7f]/.test(value || '') || _('Subdomains must not contain whitespace.', 'frpc-own');
 		};
 
-		o = ss.option(form.Value, 'secret_key', _('预共享密钥'));
+		o = ss.option(form.Value, 'secret_key', _('Shared secret', 'frpc-own'));
 		o.modalonly = true;
 		o.password = true;
 		o.depends('type', 'stcp');
@@ -510,30 +734,30 @@ return view.extend({
 		o.depends('type', 'xtcp');
 		o.rmempty = false;
 		o.validate = function(sectionId, value) {
-			return value && !/[\x00-\x1f\x7f]/.test(value) || _('预共享密钥不能为空且不能包含控制字符。');
+			return value && !/[\x00-\x1f\x7f]/.test(value) || _('The shared secret is required and must not contain control characters.', 'frpc-own');
 		};
 
-		o = ss.option(form.Value, 'allow_users', _('允许用户'));
+		o = ss.option(form.Value, 'allow_users', _('Allowed users', 'frpc-own'));
 		o.modalonly = true;
-		o.placeholder = 'user1,user2 或 *';
+		o.placeholder = _('user1,user2 or *', 'frpc-own');
 		o.depends('type', 'stcp');
 		o.depends('type', 'sudp');
 		o.depends('type', 'xtcp');
 		o.validate = function(sectionId, value) {
-			return !/[\x00-\x20\x7f]/.test(value || '') || _('允许用户应使用英文逗号分隔且不能包含空格。');
+			return !/[\x00-\x20\x7f]/.test(value || '') || _('Separate allowed users with commas and do not use spaces.', 'frpc-own');
 		};
 
-		o = ss.option(form.ListValue, 'multiplexer', _('多路复用器'));
+		o = ss.option(form.ListValue, 'multiplexer', _('Multiplexer', 'frpc-own'));
 		o.modalonly = true;
 		o.value('httpconnect', 'HTTP CONNECT');
 		o.default = 'httpconnect';
 		o.depends('type', 'tcpmux');
 
-		o = ss.option(form.Flag, 'use_encryption', _('加密'));
+		o = ss.option(form.Flag, 'use_encryption', _('Encryption', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 
-		o = ss.option(form.Flag, 'use_compression', _('压缩'));
+		o = ss.option(form.Flag, 'use_compression', _('Compression', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 
@@ -573,66 +797,70 @@ return view.extend({
 			uci.set('frpc', udpSection, 'enabled', '1');
 		};
 
-		o = s.taboption('basic', form.SectionValue, '_visitors', form.GridSection, 'visitor', _('私有协议访问者'));
+		o = s.taboption('basic', form.SectionValue, '_visitors', form.GridSection, 'visitor', _('Private protocol visitors', 'frpc-own'));
 		ss = o.subsection;
+		visitors = ss;
+		self.configureGrid(ss);
 		ss.anonymous = true;
 		ss.addremove = true;
 		ss.sortable = true;
-		ss.addbtntitle = _('添加访问者');
-		ss.sectiontitle = function(sectionId) { return uci.get('frpc', sectionId, 'name') || _('未命名访问者'); };
+		ss.addbtntitle = _('Add visitor', 'frpc-own');
+		ss.sectiontitle = function(sectionId) { return uci.get('frpc', sectionId, 'name') || _('Unnamed visitor', 'frpc-own'); };
 
-		o = ss.option(form.Value, 'name', _('名称'));
+		o = ss.option(form.Value, 'name', _('Name', 'frpc-own'));
 		o.rmempty = false;
 		o.validate = validateEntryName;
 
-		o = ss.option(form.ListValue, 'type', _('类型'));
+		o = ss.option(form.ListValue, 'type', _('Type', 'frpc-own'));
 	[ 'stcp', 'sudp', 'xtcp' ].forEach(function(type) { o.value(type, type.toUpperCase()); });
 		o.default = 'stcp';
 		o.rmempty = false;
 
-		o = ss.option(form.Value, 'server_name', _('服务端代理名称'));
+		o = ss.option(form.Value, 'server_name', _('Server proxy name', 'frpc-own'));
 		o.rmempty = false;
 		o.validate = validateName;
 
-		o = ss.option(form.Value, 'server_user', _('服务端用户'));
+		o = ss.option(form.Value, 'server_user', _('Server user', 'frpc-own'));
 		o.modalonly = true;
 		o.validate = function(sectionId, value) {
-			return !/[\x00-\x20\x7f]/.test(value || '') || _('服务端用户不能包含空白字符。');
+			return !/[\x00-\x20\x7f]/.test(value || '') || _('The server user must not contain whitespace.', 'frpc-own');
 		};
 
-		o = ss.option(form.Value, 'secret_key', _('预共享密钥'));
+		o = ss.option(form.Value, 'secret_key', _('Shared secret', 'frpc-own'));
 		o.modalonly = true;
 		o.password = true;
 		o.rmempty = false;
 
-		o = ss.option(form.Value, 'bind_addr', _('绑定地址'));
+		o = ss.option(form.Value, 'bind_addr', _('Bind address', 'frpc-own'));
 		o.default = '127.0.0.1';
 		o.rmempty = false;
 		o.validate = validateNoWhitespace;
 
-		o = ss.option(form.Value, 'bind_port', _('绑定端口'));
+		o = ss.option(form.Value, 'bind_port', _('Bind port', 'frpc-own'));
 		o.datatype = 'port';
 		o.rmempty = false;
 
-		o = ss.option(form.Flag, 'use_encryption', _('加密'));
+		o = ss.option(form.Flag, 'use_encryption', _('Encryption', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 
-		o = ss.option(form.Flag, 'use_compression', _('压缩'));
+		o = ss.option(form.Flag, 'use_compression', _('Compression', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 
-		o = ss.option(form.Flag, 'keep_tunnel_open', _('保持 XTCP 隧道'));
+		o = ss.option(form.Flag, 'keep_tunnel_open', _('Keep XTCP tunnel open', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 		o.depends('type', 'xtcp');
 
-		o = ss.option(form.Flag, 'enabled', _('启用'));
+		o = ss.option(form.Flag, 'enabled', _('Enable', 'frpc-own'));
 		o.modalonly = true;
 		o.enabled = '1'; o.disabled = '0'; o.default = '1';
 
-		o = s.taboption('config', form.DummyValue, '_raw_config');
-		o.render = function() { return self.renderRawConfig(data[2]); };
+		m.parse = function() { return Promise.all([ proxies.parse(), visitors.parse() ]); };
+
+		o = s.taboption('config', form.DummyValue, '_runtime_config');
+		o.render = function() { return self.renderRuntimeConfig(data[2]); };
 
 		o = s.taboption('logs', form.DummyValue, '_logs');
 		o.render = function() { return self.renderLogs(); };
@@ -642,28 +870,17 @@ return view.extend({
 
 		return m.render().then(function(rendered) {
 			var statusBar = self.renderStatusBar(initialStatus);
-			var title = rendered.querySelector('h2');
-			var logsPane = rendered.querySelector('[data-tab="logs"][data-tab-title]');
-			var updatePane = rendered.querySelector('[data-tab="update"][data-tab-title]');
-			if (title && title.parentNode)
-				title.parentNode.insertBefore(statusBar, title.nextSibling);
-			else
-				rendered.insertBefore(statusBar, rendered.firstChild);
-			if (logsPane)
-				logsPane.addEventListener('cbi-tab-active', function() {
-					if (self.refreshLogs) self.refreshLogs().catch(notifyError);
-				});
-			if (updatePane)
-				updatePane.addEventListener('cbi-tab-active', function() {
-					if (self.refreshUpdateProgress) self.refreshUpdateProgress().catch(notifyError);
-				});
+			poll.add(function() { return self.refreshStatus().catch(function() {}); }, 3);
 
-			return E('div', {}, [
+			window.requestAnimationFrame(function() { self.updateControls(); });
+			return E('div', { 'id': 'frpc-page' }, [
 				E('style', {}, [
+					'.frpc-auth-actions{justify-content:flex-end}',
 					'.frpc-status-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:.5em 0 1em}',
 					'.frpc-status-row{display:flex;align-items:center;gap:1.2em;flex-wrap:nowrap;white-space:nowrap;width:max-content;min-width:100%;padding:.35em 0}',
 					'.frpc-ok{color:#2e7d32}.frpc-bad{color:#d32f2f}',
 					'.frpc-config{width:100%;min-height:52vh;box-sizing:border-box;font-family:monospace}',
+					'.frpc-config,.frpc-log{scrollbar-width:none;-ms-overflow-style:none}.frpc-config::-webkit-scrollbar,.frpc-log::-webkit-scrollbar{display:none;width:0;height:0}',
 					'.frpc-log{max-height:55vh;min-height:18em;overflow:auto;white-space:pre-wrap;word-break:break-all;padding:1em;background:rgba(0,0,0,.045);border:1px solid #ddd}',
 					'.frpc-note{margin:.7em 0;padding:.7em 1em;background:rgba(22,119,255,.07);border-left:4px solid #1677ff}',
 					'.frpc-actions{display:flex;gap:.6em;align-items:center;flex-wrap:wrap;margin:.6em 0 1em}',
@@ -671,36 +888,14 @@ return view.extend({
 					'.frpc-update-progress{width:min(34em,100%);height:1.2em;overflow:hidden;border:1px solid #bbb;border-radius:.35em;background:rgba(0,0,0,.08)}',
 					'.frpc-update-progress-fill{width:0;height:100%;background:#1677ff;transition:width .3s ease}'
 				].join('')),
+				E('h2', {}, _('FRP client', 'frpc-own')),
+				statusBar,
 				rendered
 			]);
 		});
 	},
 
-	handleSave: function(ev) {
-		uci.set('frpc', 'main', 'config_mode', 'uci');
-		uci.set('frpc', 'main', 'enabled', '1');
-		return this.super('handleSave', [ ev ]);
-	},
-
-	handleSaveApply: function(ev, mode) {
-		var started = false;
-		function startAfterApply() {
-			if (started) return;
-			started = true;
-			document.removeEventListener('uci-applied', startAfterApply);
-			return runCommand([ 'service', 'start' ]).then(function() {
-				notify(_('配置已应用，frpc 已停止后重新启动。'));
-			}).catch(notifyError);
-		}
-
-		document.addEventListener('uci-applied', startAfterApply);
-		return this.handleSave(ev).then(function() {
-			return runCommand([ 'service', 'stop' ]);
-		}).then(function() {
-			ui.changes.apply(mode == '0');
-		}).catch(function(err) {
-			document.removeEventListener('uci-applied', startAfterApply);
-			notifyError(err);
-		});
-	}
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null
 });

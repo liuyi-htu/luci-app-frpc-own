@@ -1,0 +1,733 @@
+msgid ""
+msgstr ""
+"Language: zh_Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgctxt "frpc-own"
+msgid "1% · Starting online update..."
+msgstr "1% · 正在启动在线更新任务…"
+
+msgctxt "frpc-own"
+msgid "Add proxy"
+msgstr "添加代理"
+
+msgctxt "frpc-own"
+msgid "Add visitor"
+msgstr "添加访问者"
+
+msgctxt "frpc-own"
+msgid "Allowed users"
+msgstr "允许用户"
+
+msgctxt "frpc-own"
+msgid "An operation is in progress. Try saving again later."
+msgstr "操作正在进行，请稍后再保存。"
+
+msgctxt "frpc-own"
+msgid "An update is already in progress."
+msgstr "已有更新任务正在执行。"
+
+msgctxt "frpc-own"
+msgid "Authentication"
+msgstr "认证信息"
+
+msgctxt "frpc-own"
+msgid "Authentication data is too large"
+msgstr "认证信息过大"
+
+msgctxt "frpc-own"
+msgid "Authentication field contains control characters: %s"
+msgstr "认证字段包含控制字符：%s"
+
+msgctxt "frpc-own"
+msgid "Authentication field is required: %s"
+msgstr "认证字段不能为空：%s"
+
+msgctxt "frpc-own"
+msgid "Authentication is empty"
+msgstr "认证信息为空"
+
+msgctxt "frpc-own"
+msgid "Authentication method"
+msgstr "认证方式"
+
+msgctxt "frpc-own"
+msgid "Authentication saved."
+msgstr "认证信息已保存。"
+
+msgctxt "frpc-own"
+msgid "Authentication saved. You can start the service manually."
+msgstr "认证信息已保存，可手动启动服务。"
+
+msgctxt "frpc-own"
+msgid "Autostart"
+msgstr "开机自启"
+
+msgctxt "frpc-own"
+msgid "Autostart disabled."
+msgstr "已关闭开机自启。"
+
+msgctxt "frpc-own"
+msgid "Autostart enabled."
+msgstr "已启用开机自启。"
+
+msgctxt "frpc-own"
+msgid "Bind address"
+msgstr "绑定地址"
+
+msgctxt "frpc-own"
+msgid "Bind port"
+msgstr "绑定端口"
+
+msgctxt "frpc-own"
+msgid "Cancel"
+msgstr "取消"
+
+msgctxt "frpc-own"
+msgid "Check for online updates?"
+msgstr "确认启动在线更新检查？"
+
+msgctxt "frpc-own"
+msgid "Checking for frpc online updates."
+msgstr "开始检查 frpc 在线更新。"
+
+msgctxt "frpc-own"
+msgid "Checking the latest GitHub release..."
+msgstr "正在查询 GitHub 最新版本…"
+
+msgctxt "frpc-own"
+msgid "Checking uploaded frpc."
+msgstr "开始检查本地上传的 frpc。"
+
+msgctxt "frpc-own"
+msgid "Clear log"
+msgstr "清空日志"
+
+msgctxt "frpc-own"
+msgid "Clear the selected log?"
+msgstr "确认清空当前日志？"
+
+msgctxt "frpc-own"
+msgid "Click Refresh log to read the log."
+msgstr "点击“刷新日志”读取日志。"
+
+msgctxt "frpc-own"
+msgid "Close"
+msgstr "关闭"
+
+msgctxt "frpc-own"
+msgid "Command failed"
+msgstr "命令执行失败"
+
+msgctxt "frpc-own"
+msgid "Compression"
+msgstr "压缩"
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is not older than candidate %s. No update needed."
+msgstr "当前 frpc %s 不低于待安装版本 %s，无需更新。"
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is not older than the latest official release %s. No update needed."
+msgstr "当前 frpc %s 不低于官方最新版 %s，无需更新。"
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is the latest official release."
+msgstr "当前 frpc %s 已是官方最新版。"
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is up to date."
+msgstr "当前 frpc %s 已是最新版本。"
+
+msgctxt "frpc-own"
+msgid "Custom domains"
+msgstr "自定义域名"
+
+msgctxt "frpc-own"
+msgid "Delete"
+msgstr "删除"
+
+msgctxt "frpc-own"
+msgid "Disable autostart"
+msgstr "关闭开机自启"
+
+msgctxt "frpc-own"
+msgid "Disabled"
+msgstr "未启用"
+
+msgctxt "frpc-own"
+msgid "Domains must not contain whitespace."
+msgstr "域名不能包含空白字符。"
+
+msgctxt "frpc-own"
+msgid "Download complete. Extracting..."
+msgstr "下载完成，正在解压…"
+
+msgctxt "frpc-own"
+msgid "Downloading frpc %s..."
+msgstr "正在下载 frpc %s…"
+
+msgctxt "frpc-own"
+msgid "Edit"
+msgstr "编辑"
+
+msgctxt "frpc-own"
+msgid "Enable"
+msgstr "启用"
+
+msgctxt "frpc-own"
+msgid "Enable TLS"
+msgstr "启用 TLS"
+
+msgctxt "frpc-own"
+msgid "Enable autostart"
+msgstr "启用开机自启"
+
+msgctxt "frpc-own"
+msgid "Enabled"
+msgstr "已启用"
+
+msgctxt "frpc-own"
+msgid "Encryption"
+msgstr "加密"
+
+msgctxt "frpc-own"
+msgid "Exit on login failure"
+msgstr "登录失败退出"
+
+msgctxt "frpc-own"
+msgid "FRP client"
+msgstr "frp 客户端"
+
+msgctxt "frpc-own"
+msgid "Failed to back up current frpc"
+msgstr "备份当前 frpc 失败"
+
+msgctxt "frpc-own"
+msgid "Failed to clear log"
+msgstr "清空日志失败"
+
+msgctxt "frpc-own"
+msgid "Failed to create temporary update directory"
+msgstr "无法创建内存更新目录"
+
+msgctxt "frpc-own"
+msgid "Failed to create temporary work directory"
+msgstr "无法创建内存工作目录"
+
+msgctxt "frpc-own"
+msgid "Failed to download the latest release"
+msgstr "下载最新版失败"
+
+msgctxt "frpc-own"
+msgid "Failed to generate runtime configuration. Check authentication and proxy settings."
+msgstr "生成运行配置失败，请检查认证信息和代理设置"
+
+msgctxt "frpc-own"
+msgid "Failed to make the candidate executable"
+msgstr "无法设置候选文件执行权限"
+
+msgctxt "frpc-own"
+msgid "Failed to parse the latest version"
+msgstr "无法解析最新版号"
+
+msgctxt "frpc-own"
+msgid "Failed to query the latest GitHub release"
+msgstr "查询 GitHub 最新版本失败"
+
+msgctxt "frpc-own"
+msgid "Failed to read authentication data"
+msgstr "读取认证信息失败"
+
+msgctxt "frpc-own"
+msgid "Failed to read runtime configuration."
+msgstr "读取运行配置失败。"
+
+msgctxt "frpc-own"
+msgid "Failed to read upload"
+msgstr "读取上传文件失败"
+
+msgctxt "frpc-own"
+msgid "Failed to save authentication"
+msgstr "保存认证信息失败"
+
+msgctxt "frpc-own"
+msgid "Failed to set the enabled flag"
+msgstr "写入启用状态失败"
+
+msgctxt "frpc-own"
+msgid "Failed to start local update"
+msgstr "无法启动本地更新任务"
+
+msgctxt "frpc-own"
+msgid "Failed to start online update"
+msgstr "无法启动在线更新任务"
+
+msgctxt "frpc-own"
+msgid "Failed to stop frpc"
+msgstr "停止 frpc 失败"
+
+msgctxt "frpc-own"
+msgid "Failed to write authentication data"
+msgstr "写入认证信息失败"
+
+msgctxt "frpc-own"
+msgid "Failed to write new frpc. Attempted to restore the previous version."
+msgstr "写入新版 frpc 失败，已尝试恢复旧版本"
+
+msgctxt "frpc-own"
+msgid "Found frpc %s. Detecting system architecture..."
+msgstr "发现新版 frpc %s，正在确认系统架构…"
+
+msgctxt "frpc-own"
+msgid "Installing frpc %s..."
+msgstr "正在安装 frpc %s…"
+
+msgctxt "frpc-own"
+msgid "Invalid arguments"
+msgstr "参数无效"
+
+msgctxt "frpc-own"
+msgid "Invalid authentication data"
+msgstr "认证信息格式无效"
+
+msgctxt "frpc-own"
+msgid "Invalid authentication method"
+msgstr "认证方式无效"
+
+msgctxt "frpc-own"
+msgid "Invalid boolean value"
+msgstr "开关值无效"
+
+msgctxt "frpc-own"
+msgid "Invalid log level"
+msgstr "日志等级无效"
+
+msgctxt "frpc-own"
+msgid "Invalid numeric field: %s"
+msgstr "数值字段无效：%s"
+
+msgctxt "frpc-own"
+msgid "Invalid upload path"
+msgstr "上传文件路径无效"
+
+msgctxt "frpc-own"
+msgid "Keep XTCP tunnel open"
+msgstr "保持 XTCP 隧道"
+
+msgctxt "frpc-own"
+msgid "Local address"
+msgstr "本地地址"
+
+msgctxt "frpc-own"
+msgid "Local port"
+msgstr "本地端口"
+
+msgctxt "frpc-own"
+msgid "Log cleared."
+msgstr "日志已清空。"
+
+msgctxt "frpc-own"
+msgid "Log level"
+msgstr "日志等级"
+
+msgctxt "frpc-own"
+msgid "Log retention (days)"
+msgstr "日志保留天数"
+
+msgctxt "frpc-own"
+msgid "Log retention is out of range"
+msgstr "日志保留天数超出范围"
+
+msgctxt "frpc-own"
+msgid "Logs"
+msgstr "日志"
+
+msgctxt "frpc-own"
+msgid "Missing log type"
+msgstr "缺少日志类型"
+
+msgctxt "frpc-own"
+msgid "Missing service action"
+msgstr "缺少服务操作"
+
+msgctxt "frpc-own"
+msgid "Missing upload"
+msgstr "缺少上传文件"
+
+msgctxt "frpc-own"
+msgid "Multiplexer"
+msgstr "多路复用器"
+
+msgctxt "frpc-own"
+msgid "Name"
+msgstr "名称"
+
+msgctxt "frpc-own"
+msgid "New frpc failed to start. Previous version restored."
+msgstr "新版 frpc 启动失败，已恢复旧版本"
+
+msgctxt "frpc-own"
+msgid "New frpc failed to start. Rolling back."
+msgstr "新版 frpc 启动失败，正在回滚。"
+
+msgctxt "frpc-own"
+msgid "No log entries."
+msgstr "暂无日志。"
+
+msgctxt "frpc-own"
+msgid "No runtime configuration is available."
+msgstr "尚无运行配置。"
+
+msgctxt "frpc-own"
+msgid "No update has started."
+msgstr "尚未开始更新。"
+
+msgctxt "frpc-own"
+msgid "No valid frpc executable found in the download"
+msgstr "下载包中未找到有效 frpc"
+
+msgctxt "frpc-own"
+msgid "Not installed"
+msgstr "未安装"
+
+msgctxt "frpc-own"
+msgid "Notice"
+msgstr "提示"
+
+msgctxt "frpc-own"
+msgid "Numeric field is out of range: %s"
+msgstr "数值字段超出范围：%s"
+
+msgctxt "frpc-own"
+msgid "Online update"
+msgstr "在线更新"
+
+msgctxt "frpc-own"
+msgid "Online update does not support this CPU architecture"
+msgstr "当前 CPU 架构不受在线更新支持"
+
+msgctxt "frpc-own"
+msgid "Online update started"
+msgstr "在线更新任务已启动"
+
+msgctxt "frpc-own"
+msgid "Operation failed"
+msgstr "操作失败"
+
+msgctxt "frpc-own"
+msgid "Parsing release information..."
+msgstr "正在解析最新版本信息…"
+
+msgctxt "frpc-own"
+msgid "Private protocol visitors"
+msgstr "私有协议访问者"
+
+msgctxt "frpc-own"
+msgid "Proxies"
+msgstr "代理管理"
+
+msgctxt "frpc-own"
+msgid "Proxy and visitor names must be unique."
+msgstr "代理和访问者名称不能重复。"
+
+msgctxt "frpc-own"
+msgid "Proxy configuration saved."
+msgstr "代理配置已保存。"
+
+msgctxt "frpc-own"
+msgid "Proxy settings"
+msgstr "代理设置"
+
+msgctxt "frpc-own"
+msgid "Reading update status again..."
+msgstr "正在重新读取更新状态…"
+
+msgctxt "frpc-own"
+msgid "Reading upload..."
+msgstr "正在读取上传文件…"
+
+msgctxt "frpc-own"
+msgid "Refresh log"
+msgstr "刷新日志"
+
+msgctxt "frpc-own"
+msgid "Remote port"
+msgstr "远程端口"
+
+msgctxt "frpc-own"
+msgid "Running"
+msgstr "运行中"
+
+msgctxt "frpc-own"
+msgid "Runtime configuration"
+msgstr "运行配置"
+
+msgctxt "frpc-own"
+msgid "Save"
+msgstr "保存"
+
+msgctxt "frpc-own"
+msgid "Save authentication"
+msgstr "保存认证信息"
+
+msgctxt "frpc-own"
+msgid "Separate allowed users with commas and do not use spaces."
+msgstr "允许用户应使用英文逗号分隔且不能包含空格。"
+
+msgctxt "frpc-own"
+msgid "Separate multiple domains with commas"
+msgstr "多个域名用英文逗号分隔"
+
+msgctxt "frpc-own"
+msgid "Server address"
+msgstr "服务器地址"
+
+msgctxt "frpc-own"
+msgid "Server address must not contain whitespace"
+msgstr "服务器地址不能包含空白字符"
+
+msgctxt "frpc-own"
+msgid "Server port"
+msgstr "服务器端口"
+
+msgctxt "frpc-own"
+msgid "Server port is out of range"
+msgstr "服务器端口超出范围"
+
+msgctxt "frpc-own"
+msgid "Server proxy name"
+msgstr "服务端代理名称"
+
+msgctxt "frpc-own"
+msgid "Server user"
+msgstr "服务端用户"
+
+msgctxt "frpc-own"
+msgid "Service status"
+msgstr "服务状态"
+
+msgctxt "frpc-own"
+msgid "Shared secret"
+msgstr "预共享密钥"
+
+msgctxt "frpc-own"
+msgid "Specify at least one custom domain or subdomain."
+msgstr "自定义域名和子域名至少填写一项。"
+
+msgctxt "frpc-own"
+msgid "Start service"
+msgstr "启动服务"
+
+msgctxt "frpc-own"
+msgid "Starting local update..."
+msgstr "正在启动本地更新任务…"
+
+msgctxt "frpc-own"
+msgid "Starting new frpc..."
+msgstr "正在启动新版 frpc…"
+
+msgctxt "frpc-own"
+msgid "Starting online update..."
+msgstr "正在启动在线更新任务…"
+
+msgctxt "frpc-own"
+msgid "Startup failed and no backup is available"
+msgstr "启动失败且没有可用备份"
+
+msgctxt "frpc-own"
+msgid "Stop frpc before making changes."
+msgstr "请先停止 frpc，再进行操作。"
+
+msgctxt "frpc-own"
+msgid "Stop frpc before reordering proxies."
+msgstr "请先停止 frpc，再修改代理顺序。"
+
+msgctxt "frpc-own"
+msgid "Stop service"
+msgstr "停止服务"
+
+msgctxt "frpc-own"
+msgid "Stopped"
+msgstr "已停止"
+
+msgctxt "frpc-own"
+msgid "Stopping frpc service..."
+msgstr "正在停止 frpc 服务…"
+
+msgctxt "frpc-own"
+msgid "Subdomain"
+msgstr "子域名"
+
+msgctxt "frpc-own"
+msgid "Subdomains must not contain whitespace."
+msgstr "子域名不能包含空白字符。"
+
+msgctxt "frpc-own"
+msgid "Synchronizing runtime configuration..."
+msgstr "正在同步运行配置…"
+
+msgctxt "frpc-own"
+msgid "The base name of a TCP + UDP proxy must not exceed 60 characters."
+msgstr "TCP + UDP 代理的基础名称不能超过 60 位。"
+
+msgctxt "frpc-own"
+msgid "The candidate is not a valid frpc executable"
+msgstr "候选文件不是有效的 frpc"
+
+msgctxt "frpc-own"
+msgid "The server user must not contain whitespace."
+msgstr "服务端用户不能包含空白字符。"
+
+msgctxt "frpc-own"
+msgid "The shared secret is required and must not contain control characters."
+msgstr "预共享密钥不能为空且不能包含控制字符。"
+
+msgctxt "frpc-own"
+msgid "The uploaded file is empty"
+msgstr "上传文件为空"
+
+msgctxt "frpc-own"
+msgid "The uploaded file must not exceed 64 MiB."
+msgstr "上传文件不能超过 64 MiB。"
+
+msgctxt "frpc-own"
+msgid "This field is required and must not contain control characters."
+msgstr "不能为空且不能包含控制字符。"
+
+msgctxt "frpc-own"
+msgid "This field is required and must not contain whitespace."
+msgstr "不能为空且不能包含空白字符。"
+
+msgctxt "frpc-own"
+msgid "This field is required, must not contain control characters, and must not exceed 64 characters."
+msgstr "不能为空、不能包含控制字符且不能超过 64 位。"
+
+msgctxt "frpc-own"
+msgid "This field is required."
+msgstr "不能为空。"
+
+msgctxt "frpc-own"
+msgid "Token"
+msgstr "Token"
+
+msgctxt "frpc-own"
+msgid "Type"
+msgstr "类型"
+
+msgctxt "frpc-own"
+msgid "Unable to read frpc service status."
+msgstr "无法读取 frpc 运行状态。"
+
+msgctxt "frpc-own"
+msgid "Unnamed visitor"
+msgstr "未命名访问者"
+
+msgctxt "frpc-own"
+msgid "Unsupported log type"
+msgstr "不支持的日志类型"
+
+msgctxt "frpc-own"
+msgid "Unsupported service action"
+msgstr "不支持的服务操作"
+
+msgctxt "frpc-own"
+msgid "Unsupported update method"
+msgstr "不支持的更新方式"
+
+msgctxt "frpc-own"
+msgid "Update core"
+msgstr "更新内核"
+
+msgctxt "frpc-own"
+msgid "Update failed: %s"
+msgstr "更新失败：%s"
+
+msgctxt "frpc-own"
+msgid "Update is in progress..."
+msgstr "更新任务正在运行…"
+
+msgctxt "frpc-own"
+msgid "Update started."
+msgstr "更新任务已启动。"
+
+msgctxt "frpc-own"
+msgid "Upload frpc or tar.gz"
+msgstr "上传 frpc 或 tar.gz"
+
+msgctxt "frpc-own"
+msgid "Upload received. Update started."
+msgstr "上传文件已接收，更新任务已启动"
+
+msgctxt "frpc-own"
+msgid "Use 1-64 letters, digits, dots, underscores, or hyphens."
+msgstr "只能使用 1-64 位字母、数字、点、下划线或横线。"
+
+msgctxt "frpc-own"
+msgid "User"
+msgstr "用户"
+
+msgctxt "frpc-own"
+msgid "User must not exceed 64 characters"
+msgstr "用户不能超过 64 位"
+
+msgctxt "frpc-own"
+msgid "Verifying candidate frpc..."
+msgstr "正在校验候选 frpc…"
+
+msgctxt "frpc-own"
+msgid "Version"
+msgstr "版本"
+
+msgctxt "frpc-own"
+msgid "auth.token (global token)"
+msgstr "auth.token（全局 Token）"
+
+msgctxt "frpc-own"
+msgid "frpc %s failed"
+msgstr "frpc %s 执行失败"
+
+msgctxt "frpc-own"
+msgid "frpc failed to start. Check the system log."
+msgstr "frpc 启动失败，请查看系统日志"
+
+msgctxt "frpc-own"
+msgid "frpc is running. Stop the service before saving configuration"
+msgstr "frpc 正在运行，请先停止服务再保存配置"
+
+msgctxt "frpc-own"
+msgid "frpc is running. Stop the service before saving configuration."
+msgstr "frpc 正在运行，请先停止服务再保存配置。"
+
+msgctxt "frpc-own"
+msgid "frpc started."
+msgstr "frpc 已启动。"
+
+msgctxt "frpc-own"
+msgid "frpc stopped."
+msgstr "frpc 已停止。"
+
+msgctxt "frpc-own"
+msgid "frpc updated from %s to %s."
+msgstr "frpc 已从 %s 更新到 %s。"
+
+msgctxt "frpc-own"
+msgid "frpc updated to %s."
+msgstr "frpc 已更新到 %s。"
+
+msgctxt "frpc-own"
+msgid "metadatas.token (per-user key)"
+msgstr "metadatas.token（用户独立密钥）"
+
+msgctxt "frpc-own"
+msgid "user1,user2 or *"
+msgstr "user1,user2 或 *"
+
+msgid "FRPC Own"
+msgstr "frp 客户端"
+
+msgctxt "frpc-own"
+msgid "No entries yet"
+msgstr "尚无任何配置"

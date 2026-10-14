@@ -1,6 +1,6 @@
 {
 	"admin/services/frpc": {
-		"title": "frp 客户端",
+		"title": "FRPC Own",
 		"order": 91,
 		"action": {
 			"type": "view",

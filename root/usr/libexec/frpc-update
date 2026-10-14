@@ -16,6 +16,7 @@ timestamp() {
 log() {
 	mkdir -p /var/log
 	printf '%s %s\n' "$(timestamp)" "$*" >> "$LOG"
+	/usr/libexec/frpc-log-limit trim
 }
 
 set_progress() {
@@ -33,8 +34,8 @@ cleanup() {
 }
 
 fail() {
-	log "更新失败：$*"
-	set_progress error 100 "更新失败：$*"
+	log "Update failed: $*"
+	set_progress error 100 "Update failed: $*"
 	exit 1
 }
 
@@ -83,27 +84,27 @@ extract_candidate() {
 }
 
 install_candidate() {
-	set_progress running 75 '正在校验候选 frpc…'
-	chmod 0755 "$CANDIDATE" || fail '无法设置候选文件执行权限'
+	set_progress running 75 'Verifying candidate frpc...'
+	chmod 0755 "$CANDIDATE" || fail 'Failed to make the candidate executable'
 	candidate_version="$(frpc_version "$CANDIDATE")"
-	[ -n "$candidate_version" ] || fail '候选文件不是有效的 frpc'
+	[ -n "$candidate_version" ] || fail 'The candidate is not a valid frpc executable'
 	current_version="$(frpc_version /usr/bin/frpc 2>/dev/null || true)"
 	if [ -n "$current_version" ] && ! version_gt "$candidate_version" "$current_version"; then
-		log "当前 frpc $current_version 不低于待安装版本 $candidate_version，无需更新。"
-		set_progress success 100 "当前 frpc $current_version 已是最新版本。"
+		log "Current frpc $current_version is not older than candidate $candidate_version. No update needed."
+		set_progress success 100 "Current frpc $current_version is up to date."
 		return 0
 	fi
 
 	was_running=0
 	pidof frpc >/dev/null 2>&1 && was_running=1
-	set_progress running 82 '正在停止 frpc 服务…'
-	[ "$was_running" -eq 0 ] || /etc/init.d/frpc stop >/dev/null 2>&1 || fail '停止 frpc 失败'
+	set_progress running 82 'Stopping frpc service...'
+	[ "$was_running" -eq 0 ] || /etc/init.d/frpc stop >/dev/null 2>&1 || fail 'Failed to stop frpc'
 
 	if [ -x /usr/bin/frpc ]; then
-		cp /usr/bin/frpc "$WORKDIR/frpc.backup" || fail '备份当前 frpc 失败'
+		cp /usr/bin/frpc "$WORKDIR/frpc.backup" || fail 'Failed to back up current frpc'
 		chmod 0755 "$WORKDIR/frpc.backup"
 	fi
-	set_progress running 88 "正在安装 frpc $candidate_version…"
+	set_progress running 88 "Installing frpc $candidate_version..."
 	if ! cp "$CANDIDATE" /usr/bin/frpc || ! chmod 0755 /usr/bin/frpc; then
 		if [ -f "$WORKDIR/frpc.backup" ]; then
 			cp "$WORKDIR/frpc.backup" /usr/bin/frpc >/dev/null 2>&1 || true
@@ -112,75 +113,75 @@ install_candidate() {
 			rm -f /usr/bin/frpc
 		fi
 		[ "$was_running" -eq 0 ] || /etc/init.d/frpc start >/dev/null 2>&1 || true
-		fail '写入新版 frpc 失败，已尝试恢复旧版本'
+		fail 'Failed to write new frpc. Attempted to restore the previous version.'
 	fi
 
 	if [ "$was_running" -eq 1 ]; then
-		set_progress running 94 '正在启动新版 frpc…'
+		set_progress running 94 'Starting new frpc...'
 		/etc/init.d/frpc start >/dev/null 2>&1
 		sleep 2
 		if ! pidof frpc >/dev/null 2>&1; then
-			log '新版 frpc 启动失败，正在回滚。'
-			[ -f "$WORKDIR/frpc.backup" ] || fail '启动失败且没有可用备份'
+			log 'New frpc failed to start. Rolling back.'
+			[ -f "$WORKDIR/frpc.backup" ] || fail 'Startup failed and no backup is available'
 			cp "$WORKDIR/frpc.backup" /usr/bin/frpc
 			chmod 0755 /usr/bin/frpc
 			/etc/init.d/frpc start >/dev/null 2>&1 || true
-			fail '新版 frpc 启动失败，已恢复旧版本'
+			fail 'New frpc failed to start. Previous version restored.'
 		fi
 	fi
-	log "frpc 已从 ${current_version:-未安装} 更新到 $candidate_version。"
-	set_progress success 100 "frpc 已更新到 $candidate_version。"
+	log "frpc updated from ${current_version:-Not installed} to $candidate_version."
+	set_progress success 100 "frpc updated to $candidate_version."
 }
 
 [ "$#" -ge 1 ] || { echo "usage: $0 online | local FILE" >&2; exit 2; }
-mkdir -p "$RAM_DIR" || { echo '无法创建内存更新目录' >&2; exit 1; }
+mkdir -p "$RAM_DIR" || { echo 'Failed to create temporary update directory' >&2; exit 1; }
 chmod 0700 /tmp/frpc "$RAM_DIR" 2>/dev/null || true
-mkdir "$LOCK" 2>/dev/null || { log '已有更新任务正在执行。'; exit 1; }
+mkdir "$LOCK" 2>/dev/null || { log 'An update is already in progress.'; exit 1; }
 trap cleanup EXIT INT TERM
-WORKDIR="$(mktemp -d "$RAM_DIR/work.XXXXXX")" || fail '无法创建内存工作目录'
+WORKDIR="$(mktemp -d "$RAM_DIR/work.XXXXXX")" || fail 'Failed to create temporary work directory'
 mode="$1"
-set_progress running 5 '更新任务已启动。'
+set_progress running 5 'Update started.'
 
 case "$mode" in
 	online)
-		log '开始检查 frpc 在线更新。'
-		set_progress running 15 '正在查询 GitHub 最新版本…'
+		log 'Checking for frpc online updates.'
+		set_progress running 15 'Checking the latest GitHub release...'
 		metadata="$WORKDIR/release.json"
-		uclient-fetch -q -O "$metadata" 'https://api.github.com/repos/fatedier/frp/releases/latest' || fail '查询 GitHub 最新版本失败'
-		set_progress running 25 '正在解析最新版本信息…'
+		uclient-fetch -q -O "$metadata" 'https://api.github.com/repos/fatedier/frp/releases/latest' || fail 'Failed to query the latest GitHub release'
+		set_progress running 25 'Parsing release information...'
 		latest="$(jsonfilter -i "$metadata" -e '@.tag_name' 2>/dev/null | sed 's/^[vV]//')"
 		latest="$(normalize_version "$latest")"
-		[ -n "$latest" ] || fail '无法解析最新版号'
+		[ -n "$latest" ] || fail 'Failed to parse the latest version'
 		current="$(frpc_version /usr/bin/frpc 2>/dev/null || true)"
 		if [ -n "$current" ] && ! version_gt "$latest" "$current"; then
-			log "当前 frpc $current 不低于官方最新版 $latest，无需更新。"
-			set_progress success 100 "当前 frpc $current 已是官方最新版。"
+			log "Current frpc $current is not older than the latest official release $latest. No update needed."
+			set_progress success 100 "Current frpc $current is the latest official release."
 			exit 0
 		fi
-		set_progress running 35 "发现新版 frpc $latest，正在确认系统架构…"
-		arch="$(release_arch)" || fail '当前 CPU 架构不受在线更新支持'
+		set_progress running 35 "Found frpc $latest. Detecting system architecture..."
+		arch="$(release_arch)" || fail 'Online update does not support this CPU architecture'
 		archive="$WORKDIR/frp.tar.gz"
 		url="https://github.com/fatedier/frp/releases/download/v${latest}/frp_${latest}_linux_${arch}.tar.gz"
-		set_progress running 45 "正在下载 frpc $latest…"
-		uclient-fetch -q -O "$archive" "$url" || fail '下载最新版失败'
-		set_progress running 68 '下载完成，正在解压…'
-		extract_candidate "$archive" || fail '下载包中未找到有效 frpc'
+		set_progress running 45 "Downloading frpc $latest..."
+		uclient-fetch -q -O "$archive" "$url" || fail 'Failed to download the latest release'
+		set_progress running 68 'Download complete. Extracting...'
+		extract_candidate "$archive" || fail 'No valid frpc executable found in the download'
 		install_candidate
 		;;
 	local)
-		[ "$#" -eq 2 ] || fail '缺少上传文件'
+		[ "$#" -eq 2 ] || fail 'Missing upload'
 		UPLOAD="$2"
-		case "$UPLOAD" in /tmp/frpc/uploads/frpc-upload.*) ;; *) fail '上传文件路径无效' ;; esac
-		[ -s "$UPLOAD" ] || fail '上传文件为空'
-		log '开始检查本地上传的 frpc。'
-		set_progress running 35 '正在读取上传文件…'
+		case "$UPLOAD" in /tmp/frpc/uploads/frpc-upload.*) ;; *) fail 'Invalid upload path' ;; esac
+		[ -s "$UPLOAD" ] || fail 'The uploaded file is empty'
+		log 'Checking uploaded frpc.'
+		set_progress running 35 'Reading upload...'
 		if ! extract_candidate "$UPLOAD"; then
 			CANDIDATE="$WORKDIR/frpc"
-			cp "$UPLOAD" "$CANDIDATE" || fail '读取上传文件失败'
+			cp "$UPLOAD" "$CANDIDATE" || fail 'Failed to read upload'
 		fi
 		install_candidate
 		;;
 	*)
-		fail '不支持的更新方式'
+		fail 'Unsupported update method'
 		;;
 esac

@@ -1,0 +1,733 @@
+msgid ""
+msgstr ""
+"Language: LANGUAGE\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgctxt "frpc-own"
+msgid "1% · Starting online update..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Add proxy"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Add visitor"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Allowed users"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "An operation is in progress. Try saving again later."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "An update is already in progress."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication data is too large"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication field contains control characters: %s"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication field is required: %s"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication is empty"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication method"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication saved."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication saved. You can start the service manually."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Autostart"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Autostart disabled."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Autostart enabled."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Bind address"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Bind port"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Check for online updates?"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Checking for frpc online updates."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Checking the latest GitHub release..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Checking uploaded frpc."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Clear log"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Clear the selected log?"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Click Refresh log to read the log."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Close"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Command failed"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Compression"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is not older than candidate %s. No update needed."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is not older than the latest official release %s. No update needed."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is the latest official release."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Current frpc %s is up to date."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Custom domains"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Delete"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Disable autostart"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Disabled"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Domains must not contain whitespace."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Download complete. Extracting..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Downloading frpc %s..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Edit"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Enable"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Enable TLS"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Enable autostart"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Enabled"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Encryption"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Exit on login failure"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "FRP client"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to back up current frpc"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to clear log"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to create temporary update directory"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to create temporary work directory"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to download the latest release"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to generate runtime configuration. Check authentication and proxy settings."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to make the candidate executable"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to parse the latest version"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to query the latest GitHub release"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to read authentication data"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to read runtime configuration."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to read upload"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to save authentication"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to set the enabled flag"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to start local update"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to start online update"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to stop frpc"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to write authentication data"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Failed to write new frpc. Attempted to restore the previous version."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Found frpc %s. Detecting system architecture..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Installing frpc %s..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid arguments"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid authentication data"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid authentication method"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid boolean value"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid log level"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid numeric field: %s"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid upload path"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Keep XTCP tunnel open"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Local address"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Local port"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Log cleared."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Log level"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Log retention (days)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Log retention is out of range"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Logs"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Missing log type"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Missing service action"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Missing upload"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Multiplexer"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Name"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "New frpc failed to start. Previous version restored."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "New frpc failed to start. Rolling back."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "No log entries."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "No runtime configuration is available."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "No update has started."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "No valid frpc executable found in the download"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Not installed"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Notice"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Numeric field is out of range: %s"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Online update"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Online update does not support this CPU architecture"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Online update started"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Operation failed"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Parsing release information..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Private protocol visitors"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Proxies"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Proxy and visitor names must be unique."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Proxy configuration saved."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Proxy settings"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Reading update status again..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Reading upload..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Refresh log"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Remote port"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Running"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Runtime configuration"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Save"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Save authentication"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Separate allowed users with commas and do not use spaces."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Separate multiple domains with commas"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server address"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server address must not contain whitespace"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server port"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server port is out of range"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server proxy name"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Server user"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Service status"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Shared secret"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Specify at least one custom domain or subdomain."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Start service"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Starting local update..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Starting new frpc..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Starting online update..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Startup failed and no backup is available"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Stop frpc before making changes."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Stop frpc before reordering proxies."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Stop service"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Stopped"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Stopping frpc service..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Subdomain"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Subdomains must not contain whitespace."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Synchronizing runtime configuration..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The base name of a TCP + UDP proxy must not exceed 60 characters."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The candidate is not a valid frpc executable"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The server user must not contain whitespace."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The shared secret is required and must not contain control characters."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The uploaded file is empty"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "The uploaded file must not exceed 64 MiB."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "This field is required and must not contain control characters."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "This field is required and must not contain whitespace."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "This field is required, must not contain control characters, and must not exceed 64 characters."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "This field is required."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Token"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Type"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unable to read frpc service status."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unnamed visitor"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unsupported log type"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unsupported service action"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unsupported update method"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Update core"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Update failed: %s"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Update is in progress..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Update started."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Upload frpc or tar.gz"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Upload received. Update started."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Use 1-64 letters, digits, dots, underscores, or hyphens."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "User"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "User must not exceed 64 characters"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Verifying candidate frpc..."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Version"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "auth.token (global token)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc %s failed"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc failed to start. Check the system log."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc is running. Stop the service before saving configuration"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc is running. Stop the service before saving configuration."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc started."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc stopped."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc updated from %s to %s."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc updated to %s."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "metadatas.token (per-user key)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "user1,user2 or *"
+msgstr ""
+
+msgid "FRPC Own"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "No entries yet"
+msgstr ""

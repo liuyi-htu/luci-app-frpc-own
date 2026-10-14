@@ -16,11 +16,6 @@ rm -f /tmp/frpc-runtime.toml /tmp/frpc-config-upload /tmp/frpc-upload.tar.gz /tm
 mkdir -p /tmp/frpc/runtime /tmp/frpc/uploads /tmp/frpc/update /tmp/frpc/verify /tmp/frpc/enforce
 chmod 0700 /tmp/frpc /tmp/frpc/runtime /tmp/frpc/uploads /tmp/frpc/update /tmp/frpc/verify /tmp/frpc/enforce
 
-uci -q get frpc.main.config_mode >/dev/null || {
-	uci set frpc.main.config_mode='uci'
-	uci commit frpc
-}
-
 chmod 0600 /etc/config/frpc
 chmod 0755 /etc/init.d/frpc /usr/libexec/frpc-ui /usr/libexec/frpc-update /usr/libexec/frpc-enforce-log
 /etc/init.d/frpc enable

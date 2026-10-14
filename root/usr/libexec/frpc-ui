@@ -4,11 +4,9 @@ set -u
 
 INIT=/etc/init.d/frpc
 UPDATE=/usr/libexec/frpc-update
-ENFORCER=/usr/libexec/frpc-enforce-log
-RAW_CONFIG=/etc/frp-stack/frpc.toml
 RAM_ROOT=/tmp/frpc
 RUNTIME_CONFIG=$RAM_ROOT/runtime/frpc.toml
-CONFIG_UPLOAD=$RAM_ROOT/uploads/config-upload
+AUTH_UPLOAD=$RAM_ROOT/uploads/auth-upload.json
 FRPC_UPLOAD=$RAM_ROOT/uploads/frpc-upload.tar.gz
 VERIFY_DIR=$RAM_ROOT/verify
 UPDATE_STATUS=$RAM_ROOT/update/status
@@ -20,7 +18,7 @@ fail() {
 }
 
 prepare_ram_dirs() {
-	mkdir -p "$RAM_ROOT/runtime" "$RAM_ROOT/uploads" "$RAM_ROOT/update" "$VERIFY_DIR" "$RAM_ROOT/enforce" || fail '无法创建内存工作目录'
+	mkdir -p "$RAM_ROOT/runtime" "$RAM_ROOT/uploads" "$RAM_ROOT/update" "$VERIFY_DIR" "$RAM_ROOT/enforce" || fail 'Failed to create temporary work directory'
 	chmod 0700 "$RAM_ROOT" "$RAM_ROOT/runtime" "$RAM_ROOT/uploads" "$RAM_ROOT/update" "$VERIFY_DIR" "$RAM_ROOT/enforce"
 }
 
@@ -40,62 +38,52 @@ service_action() {
 			uci -q commit frpc
 			;;
 		stop|enable|disable) ;;
-		*) fail '不支持的服务操作' ;;
+		*) fail 'Unsupported service action' ;;
 	esac
-	"$INIT" "$action" >/dev/null 2>&1 || fail "frpc $action 执行失败"
+	"$INIT" "$action" >/dev/null 2>&1 || fail "frpc $action failed"
 	if [ "$action" = start ] || [ "$action" = restart ]; then
 		sleep 1
-		is_running || fail 'frpc 启动失败，请查看系统日志'
+		is_running || fail 'frpc failed to start. Check the system log.'
 	fi
 }
 
-save_raw_config() {
-	[ -s "$CONFIG_UPLOAD" ] || fail '配置文件为空'
-	local size verify output backup was_running=0 had_raw=0
-	size="$(wc -c < "$CONFIG_UPLOAD")"
-	[ "$size" -le 1048576 ] || fail '配置文件不能超过 1 MiB'
-	verify="$VERIFY_DIR/config.$$"
-	output="$VERIFY_DIR/output.$$.log"
-	backup="$VERIFY_DIR/raw-backup.$$"
-	trap 'rm -f "$VERIFY_DIR/config.$$" "$VERIFY_DIR/output.$$.log" "$VERIFY_DIR/raw-backup.$$" "$CONFIG_UPLOAD"' EXIT INT TERM
-	cp "$CONFIG_UPLOAD" "$verify" || fail '读取临时配置失败'
-	chmod 0600 "$verify"
-	"$ENFORCER" "$verify" || fail '无法强制写入日志配置'
-	/usr/bin/frpc verify -c "$verify" >"$output" 2>&1 || {
-		local detail
-		detail="$(tail -n 20 "$output")"
-		fail "配置校验失败：${detail:-frpc verify 执行失败}"
-	}
-	mkdir -p /etc/frp-stack || fail '创建配置目录失败'
-	if [ -e "$RAW_CONFIG" ]; then
-		had_raw=1
-		cp "$RAW_CONFIG" "$backup" || fail '无法在内存中备份原配置文件'
-		chmod 0600 "$backup"
-	fi
-	is_running && was_running=1
-	[ "$was_running" -eq 0 ] || "$INIT" stop >/dev/null 2>&1 || fail '停止 frpc 失败，未修改配置'
-	if ! cp "$verify" "$RAW_CONFIG" || ! chmod 0600 "$RAW_CONFIG"; then
-		if [ "$had_raw" -eq 1 ]; then
-			cp "$backup" "$RAW_CONFIG" >/dev/null 2>&1 || true
-			chmod 0600 "$RAW_CONFIG" >/dev/null 2>&1 || true
-		else
-			rm -f "$RAW_CONFIG"
-		fi
-		[ "$was_running" -eq 0 ] || "$INIT" start >/dev/null 2>&1 || true
-		fail '写入配置文件失败，已尝试恢复原配置'
-	fi
-	uci -q set frpc.main.config_mode='raw'
-	uci -q set frpc.main.enabled='1'
-	uci -q commit frpc || {
-		[ "$was_running" -eq 0 ] || "$INIT" start >/dev/null 2>&1 || true
-		fail '配置已写入，但保存配置模式失败'
-	}
-	if [ "$was_running" -eq 1 ]; then
-		"$INIT" start >/dev/null 2>&1 || fail '配置已保存，但 frpc 自动重启失败'
-		sleep 1
-		is_running || fail '配置已保存，但 frpc 自动重启失败'
-	fi
-	printf '%s\n' '配置校验通过并已保存'
+save_authentication() {
+	trap 'rm -f "$AUTH_UPLOAD"' EXIT INT TERM
+	is_running && fail 'frpc is running. Stop the service before saving configuration'
+	[ -s "$AUTH_UPLOAD" ] || fail 'Authentication is empty'
+	[ "$(wc -c < "$AUTH_UPLOAD")" -le 16384 ] || fail 'Authentication data is too large'
+	local fields='server_addr server_port user auth_mode token tls_enable login_fail_exit log_level log_max_days'
+	local field value
+	# Validate every field before changing UCI. Only this whitelist is persisted;
+	# proxy/visitor changes staged in the LuCI RPC session remain untouched.
+	for field in $fields; do
+		value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field" 2>/dev/null)" || fail 'Invalid authentication data'
+		[ -n "$value" ] || fail "Authentication field is required: $field"
+		[ "$(printf '%s' "$value" | tr -d '\000-\037\177')" = "$value" ] || fail "Authentication field contains control characters: $field"
+		case "$field" in
+			server_addr) printf '%s' "$value" | grep -q '[[:space:]]' && fail 'Server address must not contain whitespace' ;;
+			server_port|log_max_days)
+				case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac
+				[ "${#value}" -le 5 ] || fail "Numeric field is out of range: $field"
+				if [ "$field" = server_port ]; then
+					[ "$value" -ge 1 ] && [ "$value" -le 65535 ] || fail 'Server port is out of range'
+				else
+					[ "$value" -le 3650 ] || fail 'Log retention is out of range'
+				fi ;;
+			user) [ "${#value}" -le 64 ] || fail 'User must not exceed 64 characters' ;;
+			auth_mode) case "$value" in metadatas|auth) ;; *) fail 'Invalid authentication method' ;; esac ;;
+			tls_enable|login_fail_exit) case "$value" in true|false) ;; *) fail 'Invalid boolean value' ;; esac ;;
+			log_level) case "$value" in trace|debug|info|warn|error) ;; *) fail 'Invalid log level' ;; esac ;;
+		esac
+	done
+	is_running && fail 'frpc is running. Stop the service before saving configuration'
+	for field in $fields; do
+		value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field" 2>/dev/null)" || fail 'Failed to read authentication data'
+		uci -q set "frpc.main.$field=$value" >/dev/null 2>&1 || fail 'Failed to write authentication data'
+	done
+	uci -q set frpc.main.enabled='1' || fail 'Failed to set the enabled flag'
+	uci -q commit frpc || fail 'Failed to save authentication'
+	printf '%s\n' 'Authentication saved. You can start the service manually.'
 }
 
 read_log() {
@@ -103,9 +91,10 @@ read_log() {
 	case "${1:-}" in
 		frpc) path=/var/log/frpc.log ;;
 		update) path=/var/log/update.log ;;
-		*) fail '不支持的日志类型' ;;
+		*) fail 'Unsupported log type' ;;
 	esac
 	[ -f "$path" ] || exit 0
+	/usr/libexec/frpc-log-limit trim
 	tail -c 524288 "$path" 2>/dev/null | tail -n 50
 }
 
@@ -114,10 +103,10 @@ clear_log() {
 	case "${1:-}" in
 		frpc) path=/var/log/frpc.log ;;
 		update) path=/var/log/update.log ;;
-		*) fail '不支持的日志类型' ;;
+		*) fail 'Unsupported log type' ;;
 	esac
 	mkdir -p /var/log
-	: > "$path" || fail '清空日志失败'
+	: > "$path" || fail 'Failed to clear log'
 }
 
 prepare_ram_dirs
@@ -128,62 +117,62 @@ case "${1:-}" in
 		is_running && running=1
 		is_enabled && enabled=1
 		version="$(/usr/bin/frpc -v 2>/dev/null | head -n 1 || true)"
-		mode="$(uci -q get frpc.main.config_mode || echo uci)"
-		printf '%s\t%s\t%s\t%s\n' "$running" "$enabled" "${version:-未安装}" "$mode"
+		printf '%s\t%s\t%s\n' "$running" "$enabled" "${version:-Not installed}"
 		;;
 	service)
-		[ "$#" -eq 2 ] || fail '缺少服务操作'
+		[ "$#" -eq 2 ] || fail 'Missing service action'
 		service_action "$2"
 		;;
 	restart-if-running)
 		if is_running; then service_action restart; fi
 		;;
-	read-config)
-		mode="$(uci -q get frpc.main.config_mode || echo uci)"
-		if [ "$mode" = raw ] && [ -f "$RAW_CONFIG" ]; then
-			cat "$RAW_CONFIG"
-		elif [ -f "$RUNTIME_CONFIG" ]; then
+	read-runtime-config|read-config)
+		[ "$#" -eq 1 ] || fail 'Invalid arguments'
+		if ! is_running; then
+			"$INIT" generate_runtime_config || fail 'Failed to generate runtime configuration. Check authentication and proxy settings.'
+		fi
+		if [ -f "$RUNTIME_CONFIG" ]; then
 			cat "$RUNTIME_CONFIG"
 		fi
 		;;
-	save-config)
-		[ "$#" -eq 1 ] || fail '参数无效'
-		save_raw_config
+	save-auth)
+		[ "$#" -eq 1 ] || fail 'Invalid arguments'
+		save_authentication
 		;;
 	read-log)
-		[ "$#" -eq 2 ] || fail '缺少日志类型'
+		[ "$#" -eq 2 ] || fail 'Missing log type'
 		read_log "$2"
 		;;
 	clear-log)
-		[ "$#" -eq 2 ] || fail '缺少日志类型'
+		[ "$#" -eq 2 ] || fail 'Missing log type'
 		clear_log "$2"
 		;;
 	update-online)
-		[ "$#" -eq 1 ] || fail '参数无效'
-		[ ! -d "$UPDATE_LOCK" ] || fail '已有更新任务正在执行。'
-		printf '%s\t%s\t%s\n' running 1 '正在启动在线更新任务…' > "$UPDATE_STATUS"
-		/sbin/start-stop-daemon -S -b -O /dev/null -x "$UPDATE" -- online || fail '无法启动在线更新任务'
-		printf '%s\n' '在线更新任务已启动'
+		[ "$#" -eq 1 ] || fail 'Invalid arguments'
+		[ ! -d "$UPDATE_LOCK" ] || fail 'An update is already in progress.'
+		printf '%s\t%s\t%s\n' running 1 'Starting online update...' > "$UPDATE_STATUS"
+		/sbin/start-stop-daemon -S -b -O /dev/null -x "$UPDATE" -- online || fail 'Failed to start online update'
+		printf '%s\n' 'Online update started'
 		;;
 	update-local)
-		[ "$#" -eq 1 ] || fail '参数无效'
-		[ ! -d "$UPDATE_LOCK" ] || fail '已有更新任务正在执行。'
-		[ -s "$FRPC_UPLOAD" ] || fail '上传文件为空'
-		printf '%s\t%s\t%s\n' running 1 '正在启动本地更新任务…' > "$UPDATE_STATUS"
-		/sbin/start-stop-daemon -S -b -O /dev/null -x "$UPDATE" -- local "$FRPC_UPLOAD" || fail '无法启动本地更新任务'
-		printf '%s\n' '上传文件已接收，更新任务已启动'
+		[ "$#" -eq 1 ] || fail 'Invalid arguments'
+		[ ! -d "$UPDATE_LOCK" ] || fail 'An update is already in progress.'
+		[ -s "$FRPC_UPLOAD" ] || fail 'The uploaded file is empty'
+		printf '%s\t%s\t%s\n' running 1 'Starting local update...' > "$UPDATE_STATUS"
+		/sbin/start-stop-daemon -S -b -O /dev/null -x "$UPDATE" -- local "$FRPC_UPLOAD" || fail 'Failed to start local update'
+		printf '%s\n' 'Upload received. Update started.'
 		;;
 	update-status)
-		[ "$#" -eq 1 ] || fail '参数无效'
+		[ "$#" -eq 1 ] || fail 'Invalid arguments'
 		if [ -s "$UPDATE_STATUS" ]; then
 			sed -n '1p' "$UPDATE_STATUS"
 		elif [ -d "$UPDATE_LOCK" ]; then
-			printf '%s\t%s\t%s\n' running 1 '更新任务正在运行…'
+			printf '%s\t%s\t%s\n' running 1 'Update is in progress...'
 		else
-			printf '%s\t%s\t%s\n' idle 0 '尚未开始更新。'
+			printf '%s\t%s\t%s\n' idle 0 'No update has started.'
 		fi
 		;;
 	*)
-		fail '用法：frpc-ui {status|service|restart-if-running|read-config|save-config|read-log|clear-log|update-online|update-local|update-status}'
+		fail 'Usage: frpc-ui {status|service|restart-if-running|read-runtime-config|save-auth|read-log|clear-log|update-online|update-local|update-status}'
 		;;
 esac

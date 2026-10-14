@@ -9,9 +9,12 @@
 		},
 		"write": {
 			"uci": [ "frpc" ],
+			"ubus": {
+				"uci": [ "commit" ]
+			},
 			"file": {
 				"/usr/libexec/frpc-ui": [ "exec" ],
-				"/tmp/frpc/uploads/config-upload": [ "write", "remove" ],
+				"/tmp/frpc/uploads/auth-upload.json": [ "write", "remove" ],
 				"/tmp/frpc/uploads/frpc-upload.tar.gz": [ "write", "remove" ]
 			}
 		}

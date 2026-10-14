@@ -1,6 +1,5 @@
 config main 'main'
 	option enabled '0'
-	option config_mode 'uci'
 	option server_addr ''
 	option server_port '7000'
 	option user ''
@@ -11,9 +10,7 @@ config main 'main'
 	option log_level 'info'
 	option log_max_days '3'
 
-# auth_mode 可选：metadatas 或 auth。
-# metadatas 使用 frps 用户插件的独立客户端密钥；auth 使用 FRPS 全局 auth.token。
-# config_mode 可选：uci 或 raw。raw 使用 /etc/frp-stack/frpc.toml。
+# auth_mode: metadatas for per-user keys, or auth for the global frps token.
 
 config proxy 'ssh'
 	option name 'ssh'
