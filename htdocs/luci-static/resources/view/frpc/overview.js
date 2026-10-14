@@ -7,6 +7,61 @@
 'require rpc';
 'require poll';
 'require frpc.i18n as frpcI18n';
+'require frpc.settings as frpcSettings';
+
+
+function foldAdvanced(container) {
+ if (!container) return;
+ var rows = Array.from(container.querySelectorAll('[data-frpc-advanced]')).filter(function(row) { return !row.closest('details'); });
+ if (!rows.length) return;
+ var details = E('details', { 'class': 'frpc-more-settings' }, [ E('summary', {}, _('More settings', 'frpc-own')) ]);
+ rows[0].parentNode.insertBefore(details, rows[0]);
+ rows.forEach(function(row) { details.appendChild(row); });
+}
+
+function addAdvanced(section, group) {
+ frpcSettings[group].forEach(function(field) {
+  var cls = field.kind === '1,0' ? form.Flag : field.kind.indexOf(',') >= 0 ? form.ListValue : field.kind === 'map' ? form.TextValue : form.Value;
+  var option = group === 'main' ? section.taboption('basic', cls, field.key, field.label) : section.option(cls, field.key, field.label);
+  option.rmempty = true;
+  if (group !== 'main') option.modalonly = true;
+  if (field.kind.indexOf(',') >= 0 && field.kind !== '1,0') {
+   option.value('', _('Default', 'frpc-own'));
+   field.kind.split(',').forEach(function(value) { option.value(value, value); });
+  }
+  if (field.key === 'enabled') { option.enabled = '1'; option.disabled = '0'; option.default = '1'; option.rmempty = false; }
+  if (field.kind === 'password') option.password = true;
+  if (field.kind === 'uint') option.datatype = 'range(0,2147483647)';
+  if (field.kind === 'interval') option.datatype = 'range(-1,2147483647)';
+  if (field.kind === 'array') option.placeholder = _('Separate values with commas', 'frpc-own');
+  if (field.kind === 'map') option.rows = 3;
+  option.validate = function(sectionId, value) {
+   if (!value) {
+    if (['oidc_client_id', 'oidc_client_secret', 'oidc_endpoint'].indexOf(field.key) >= 0 && this.section.formvalue(sectionId, 'auth_mode') === 'oidc') return _('This field is required.', 'frpc-own');
+    return true;
+   }
+   if (field.kind === 'map') {
+    var keys = {};
+    return value.split('\n').every(function(line) {
+     if (!line.trim()) return true;
+     var pos = line.indexOf('='), key = line.slice(0, pos).trim();
+     if (pos < 1 || !/^[A-Za-z0-9_-]+$/.test(key) || keys[key]) return false;
+     keys[key] = true; return !/[\x00-\x1f\x7f]/.test(line);
+    }) || _('Use unique Name=Value entries, one per line.', 'frpc-own');
+   }
+   if (/[\x00-\x1f\x7f]/.test(value)) return _('Control characters are not allowed.', 'frpc-own');
+   if (field.kind === 'bandwidth') return /^(0|[0-9]+(?:\.[0-9]+)?(?:KB|MB))$/.test(value) || _('Use 0, KB, or MB, for example 1MB.', 'frpc-own');
+   if (field.key === 'auth_scopes') return value.split(',').every(function(v) { return ['HeartBeats', 'NewWorkConns'].indexOf(v.trim()) >= 0; }) || _('Use HeartBeats or NewWorkConns.', 'frpc-own');
+   return true;
+  };
+  Object.keys(field.depends).forEach(function(key) {
+   var values = field.depends[key];
+   (Array.isArray(values) ? values : [values]).forEach(function(value) { option.depends(key, value); });
+  });
+  var render = option.render;
+  option.render = function() { return Promise.resolve(render.apply(this, arguments)).then(function(node) { node.setAttribute('data-frpc-advanced', group); return node; }); };
+ });
+}
 
 var UI_HELPER = '/usr/libexec/frpc-ui';
 var AUTH_UPLOAD = '/tmp/frpc/uploads/auth-upload.json';
@@ -169,6 +224,7 @@ return view.extend({
 			return self.assertStopped().then(function() {
 				return renderModal.call(section, sectionId, ev);
 			}).then(function() {
+				foldAdvanced(document.getElementById('modal_overlay'));
 				var button = document.querySelector('#modal_overlay .button-row .cbi-button-positive');
 				if (button) {
 					button.setAttribute('data-frpc-save', 'entry');
@@ -190,9 +246,9 @@ return view.extend({
 			var values = {};
 			options.forEach(function(option) {
 				var value = option.formvalue('main');
-				if (!option.isValid('main') || value == null || value === '')
+				if ((option.isActive('main') && !option.isValid('main')) || (!option.rmempty && option.isActive('main') && (value == null || value === '')))
 					throw new Error(option.title + ': ' + (option.getValidationError('main') || _('This field is required.', 'frpc-own')));
-				values[option.option] = value;
+				values[option.option] = option.isActive('main') ? (value == null ? '' : String(value)) : '';
 			});
 			return fs.write(AUTH_UPLOAD, JSON.stringify(values), 384);
 		}).then(function() {
@@ -555,6 +611,7 @@ return view.extend({
 		var renderContents = m.renderContents;
 		m.renderContents = function() {
 			return renderContents.call(m).then(function(rendered) {
+				foldAdvanced(rendered);
 				[ [ 'config', 'refreshRuntimeConfig' ], [ 'logs', 'refreshLogs' ], [ 'update', 'refreshUpdateProgress' ] ].forEach(function(tab) {
 					var pane = rendered.querySelector('[data-tab="' + tab[0] + '"][data-tab-title]');
 					if (pane) pane.addEventListener('cbi-tab-active', function() {
@@ -604,22 +661,25 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.taboption('basic', form.Value, 'user', _('User', 'frpc-own'));
-		o.rmempty = false;
+		o.rmempty = true;
 		o.validate = function(sectionId, value) {
-			return value && value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || _('This field is required, must not contain control characters, and must not exceed 64 characters.', 'frpc-own');
+			return !value || value.length <= 64 && !/[\x00-\x1f\x7f]/.test(value) || _('This field is required, must not contain control characters, and must not exceed 64 characters.', 'frpc-own');
 		};
 
 		o = s.taboption('basic', form.ListValue, 'auth_mode', _('Authentication method', 'frpc-own'));
 		o.value('metadatas', _('metadatas.token (per-user key)', 'frpc-own'));
 		o.value('auth', _('auth.token (global token)', 'frpc-own'));
+		o.value('oidc', 'OIDC');
 		o.default = 'metadatas';
 		o.rmempty = false;
 
 		o = s.taboption('basic', form.Value, 'token', _('Token', 'frpc-own'));
+		o.depends('auth_mode', 'metadatas');
+		o.depends('auth_mode', 'auth');
 		o.password = true;
-		o.rmempty = false;
+		o.rmempty = true;
 		o.validate = function(sectionId, value) {
-			return value && !/[\x00-\x1f\x7f]/.test(value) || _('This field is required and must not contain control characters.', 'frpc-own');
+			return (value || this.section.formvalue(sectionId, 'token_file')) && !/[\x00-\x1f\x7f]/.test(value || '') || _('This field is required and must not contain control characters.', 'frpc-own');
 		};
 
 		o = s.taboption('basic', form.Flag, 'tls_enable', _('Enable TLS', 'frpc-own'));
@@ -644,6 +704,7 @@ return view.extend({
 		o.default = '3';
 		o.rmempty = false;
 
+		addAdvanced(s, 'main');
 		var authOptions = s.children.filter(function(option) { return option.option !== '_auth_title'; });
 		o = s.taboption('basic', form.DummyValue, '_save_auth');
 		o.render = function() {
@@ -695,6 +756,8 @@ return view.extend({
 		o = ss.option(form.Value, 'local_port', _('Local port', 'frpc-own'));
 		o.datatype = 'port';
 		o.rmempty = false;
+		o.depends('plugin_type', '');
+		o.validate = function(id, value) { return !!value || !!this.section.formvalue(id, 'plugin_type') || _('Local port or client plugin is required.', 'frpc-own'); };
 
 		o = ss.option(form.Value, 'remote_port', _('Remote port', 'frpc-own'));
 		o.datatype = 'port';
@@ -761,6 +824,8 @@ return view.extend({
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 
+		addAdvanced(ss, 'proxy');
+
 		o = ss.option(form.HiddenValue, '_split_tcpudp');
 		o.modalonly = true;
 		o.default = '1';
@@ -777,6 +842,11 @@ return view.extend({
 			var encryption = this.section.formvalue(sectionId, 'use_encryption') || 'false';
 			var compression = this.section.formvalue(sectionId, 'use_compression') || 'false';
 
+			var advanced = {};
+			frpcSettings.proxy.forEach(function(field) {
+				var option = proxies.children.find(function(child) { return child.option === field.key; });
+				if (option && option.isActive(sectionId)) advanced[field.key] = option.formvalue(sectionId);
+			});
 			uci.set('frpc', sectionId, 'name', baseName + '_tcp');
 			uci.set('frpc', sectionId, 'type', 'tcp');
 			uci.set('frpc', sectionId, 'local_ip', localIp);
@@ -784,7 +854,7 @@ return view.extend({
 			uci.set('frpc', sectionId, 'remote_port', remotePort);
 			uci.set('frpc', sectionId, 'use_encryption', encryption);
 			uci.set('frpc', sectionId, 'use_compression', compression);
-			uci.set('frpc', sectionId, 'enabled', '1');
+			uci.set('frpc', sectionId, 'enabled', advanced.enabled || '1');
 
 			var udpSection = uci.add('frpc', 'proxy');
 			uci.set('frpc', udpSection, 'name', baseName + '_udp');
@@ -794,7 +864,8 @@ return view.extend({
 			uci.set('frpc', udpSection, 'remote_port', remotePort);
 			uci.set('frpc', udpSection, 'use_encryption', encryption);
 			uci.set('frpc', udpSection, 'use_compression', compression);
-			uci.set('frpc', udpSection, 'enabled', '1');
+			Object.keys(advanced).forEach(function(key) { if (advanced[key] != null && advanced[key] !== '') uci.set('frpc', udpSection, key, advanced[key]); });
+			uci.set('frpc', udpSection, 'enabled', advanced.enabled || '1');
 		};
 
 		o = s.taboption('basic', form.SectionValue, '_visitors', form.GridSection, 'visitor', _('Private protocol visitors', 'frpc-own'));
@@ -837,7 +908,7 @@ return view.extend({
 		o.validate = validateNoWhitespace;
 
 		o = ss.option(form.Value, 'bind_port', _('Bind port', 'frpc-own'));
-		o.datatype = 'port';
+		o.datatype = 'or(port,"-1")';
 		o.rmempty = false;
 
 		o = ss.option(form.Flag, 'use_encryption', _('Encryption', 'frpc-own'));
@@ -852,6 +923,8 @@ return view.extend({
 		o.modalonly = true;
 		o.enabled = 'true'; o.disabled = 'false'; o.default = 'false';
 		o.depends('type', 'xtcp');
+
+		addAdvanced(ss, 'visitor');
 
 		o = ss.option(form.Flag, 'enabled', _('Enable', 'frpc-own'));
 		o.modalonly = true;
@@ -876,6 +949,7 @@ return view.extend({
 			return E('div', { 'id': 'frpc-page' }, [
 				E('style', {}, [
 					'.frpc-auth-actions{justify-content:flex-end}',
+					'.frpc-more-settings{margin:.8em 0;padding:.6em;border:1px solid #ddd}.frpc-more-settings>summary{cursor:pointer;font-weight:bold;padding:.4em}',
 					'.frpc-status-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:.5em 0 1em}',
 					'.frpc-status-row{display:flex;align-items:center;gap:1.2em;flex-wrap:nowrap;white-space:nowrap;width:max-content;min-width:100%;padding:.35em 0}',
 					'.frpc-ok{color:#2e7d32}.frpc-bad{color:#d32f2f}',

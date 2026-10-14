@@ -731,3 +731,323 @@ msgstr "frp 客户端"
 msgctxt "frpc-own"
 msgid "No entries yet"
 msgstr "尚无任何配置"
+
+msgctxt "frpc-own"
+msgid "Connection protocol"
+msgstr "连接协议"
+
+msgctxt "frpc-own"
+msgid "Connection timeout (seconds)"
+msgstr "连接超时（秒）"
+
+msgctxt "frpc-own"
+msgid "TCP keepalive (seconds)"
+msgstr "TCP 保活间隔（秒）"
+
+msgctxt "frpc-own"
+msgid "Outgoing local IP"
+msgstr "连接绑定本地 IP"
+
+msgctxt "frpc-own"
+msgid "Connection proxy URL"
+msgstr "连接代理地址"
+
+msgctxt "frpc-own"
+msgid "Connection pool size"
+msgstr "连接池大小"
+
+msgctxt "frpc-own"
+msgid "TCP multiplexing"
+msgstr "TCP 多路复用"
+
+msgctxt "frpc-own"
+msgid "Multiplexing keepalive (seconds)"
+msgstr "多路复用保活间隔（秒）"
+
+msgctxt "frpc-own"
+msgid "Heartbeat interval (-1 disables)"
+msgstr "心跳间隔（-1 禁用）"
+
+msgctxt "frpc-own"
+msgid "Heartbeat timeout (seconds)"
+msgstr "心跳超时（秒）"
+
+msgctxt "frpc-own"
+msgid "QUIC keepalive (seconds)"
+msgstr "QUIC 保活间隔（秒）"
+
+msgctxt "frpc-own"
+msgid "QUIC idle timeout (seconds)"
+msgstr "QUIC 空闲超时（秒）"
+
+msgctxt "frpc-own"
+msgid "QUIC maximum incoming streams"
+msgstr "QUIC 最大入站流数"
+
+msgctxt "frpc-own"
+msgid "TLS certificate file"
+msgstr "TLS 证书文件"
+
+msgctxt "frpc-own"
+msgid "TLS private key file"
+msgstr "TLS 私钥文件"
+
+msgctxt "frpc-own"
+msgid "TLS trusted CA file"
+msgstr "TLS 信任 CA 文件"
+
+msgctxt "frpc-own"
+msgid "TLS server name"
+msgstr "TLS 服务端名称"
+
+msgctxt "frpc-own"
+msgid "Disable custom TLS first byte"
+msgstr "禁用 TLS 特殊首字节"
+
+msgctxt "frpc-own"
+msgid "DNS server"
+msgstr "DNS 服务器"
+
+msgctxt "frpc-own"
+msgid "STUN server"
+msgstr "STUN 服务器"
+
+msgctxt "frpc-own"
+msgid "UDP packet size"
+msgstr "UDP 包大小"
+
+msgctxt "frpc-own"
+msgid "Additional authentication scopes"
+msgstr "附加认证范围"
+
+msgctxt "frpc-own"
+msgid "Token file (replaces inline token)"
+msgstr "Token 文件（替代填写的 Token）"
+
+msgctxt "frpc-own"
+msgid "OIDC client ID"
+msgstr "OIDC 客户端 ID"
+
+msgctxt "frpc-own"
+msgid "OIDC client secret"
+msgstr "OIDC 客户端密钥"
+
+msgctxt "frpc-own"
+msgid "OIDC audience"
+msgstr "OIDC 受众"
+
+msgctxt "frpc-own"
+msgid "OIDC scope"
+msgstr "OIDC 授权范围"
+
+msgctxt "frpc-own"
+msgid "OIDC token endpoint URL"
+msgstr "OIDC Token 端点地址"
+
+msgctxt "frpc-own"
+msgid "OIDC trusted CA file"
+msgstr "OIDC 信任 CA 文件"
+
+msgctxt "frpc-own"
+msgid "OIDC proxy URL"
+msgstr "OIDC 代理地址"
+
+msgctxt "frpc-own"
+msgid "Enable proxy"
+msgstr "启用代理"
+
+msgctxt "frpc-own"
+msgid "Bandwidth limit (for example 1MB)"
+msgstr "带宽限制（例如 1MB）"
+
+msgctxt "frpc-own"
+msgid "Bandwidth limit location"
+msgstr "限速位置"
+
+msgctxt "frpc-own"
+msgid "PROXY protocol version"
+msgstr "PROXY 协议版本"
+
+msgctxt "frpc-own"
+msgid "HTTP authentication user"
+msgstr "HTTP 认证用户"
+
+msgctxt "frpc-own"
+msgid "HTTP authentication password"
+msgstr "HTTP 认证密码"
+
+msgctxt "frpc-own"
+msgid "Route by HTTP user"
+msgstr "按 HTTP 用户路由"
+
+msgctxt "frpc-own"
+msgid "HTTP path routes"
+msgstr "HTTP 路径路由"
+
+msgctxt "frpc-own"
+msgid "HTTP Host rewrite"
+msgstr "HTTP Host 重写"
+
+msgctxt "frpc-own"
+msgid "Request headers (one Name=Value per line)"
+msgstr "请求头（每行一个 名称=值）"
+
+msgctxt "frpc-own"
+msgid "Response headers (one Name=Value per line)"
+msgstr "响应头（每行一个 名称=值）"
+
+msgctxt "frpc-own"
+msgid "Load balancing group"
+msgstr "负载均衡分组"
+
+msgctxt "frpc-own"
+msgid "Load balancing group key"
+msgstr "负载均衡分组密钥"
+
+msgctxt "frpc-own"
+msgid "Health check type"
+msgstr "健康检查类型"
+
+msgctxt "frpc-own"
+msgid "Health check timeout (seconds)"
+msgstr "健康检查超时（秒）"
+
+msgctxt "frpc-own"
+msgid "Health check interval (seconds)"
+msgstr "健康检查间隔（秒）"
+
+msgctxt "frpc-own"
+msgid "Health check failure threshold"
+msgstr "健康检查失败阈值"
+
+msgctxt "frpc-own"
+msgid "Health check HTTP path"
+msgstr "健康检查 HTTP 路径"
+
+msgctxt "frpc-own"
+msgid "Disable assisted NAT addresses"
+msgstr "禁用 NAT 辅助地址"
+
+msgctxt "frpc-own"
+msgid "Client plugin"
+msgstr "客户端插件"
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP user"
+msgstr "插件 HTTP 用户"
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP password"
+msgstr "插件 HTTP 密码"
+
+msgctxt "frpc-own"
+msgid "SOCKS5 user"
+msgstr "SOCKS5 用户"
+
+msgctxt "frpc-own"
+msgid "SOCKS5 password"
+msgstr "SOCKS5 密码"
+
+msgctxt "frpc-own"
+msgid "Static file directory"
+msgstr "静态文件目录"
+
+msgctxt "frpc-own"
+msgid "Static file URL prefix to strip"
+msgstr "静态文件移除路径前缀"
+
+msgctxt "frpc-own"
+msgid "Unix socket path"
+msgstr "Unix 套接字路径"
+
+msgctxt "frpc-own"
+msgid "Plugin local service address"
+msgstr "插件本地服务地址"
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP Host rewrite"
+msgstr "插件 HTTP Host 重写"
+
+msgctxt "frpc-own"
+msgid "Plugin request headers (one Name=Value per line)"
+msgstr "插件请求头（每行一个 名称=值）"
+
+msgctxt "frpc-own"
+msgid "Plugin TLS certificate file"
+msgstr "插件 TLS 证书文件"
+
+msgctxt "frpc-own"
+msgid "Plugin TLS private key file"
+msgstr "插件 TLS 私钥文件"
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP/2"
+msgstr "插件 HTTP/2"
+
+msgctxt "frpc-own"
+msgid "XTCP tunnel protocol"
+msgstr "XTCP 隧道协议"
+
+msgctxt "frpc-own"
+msgid "XTCP retries per hour"
+msgstr "XTCP 每小时重试次数"
+
+msgctxt "frpc-own"
+msgid "XTCP minimum retry interval (seconds)"
+msgstr "XTCP 最小重试间隔（秒）"
+
+msgctxt "frpc-own"
+msgid "Fallback visitor name"
+msgstr "回退访问者名称"
+
+msgctxt "frpc-own"
+msgid "Fallback timeout (milliseconds)"
+msgstr "回退超时（毫秒）"
+
+msgctxt "frpc-own"
+msgid "More settings"
+msgstr "更多设置"
+
+msgctxt "frpc-own"
+msgid "Default"
+msgstr "默认"
+
+msgctxt "frpc-own"
+msgid "Separate values with commas"
+msgstr "多个值用逗号分隔"
+
+msgctxt "frpc-own"
+msgid "Use unique Name=Value entries, one per line."
+msgstr "每行填写一个不重复的 名称=值。"
+
+msgctxt "frpc-own"
+msgid "Control characters are not allowed."
+msgstr "不允许控制字符。"
+
+msgctxt "frpc-own"
+msgid "Use 0, KB, or MB, for example 1MB."
+msgstr "使用 0、KB 或 MB，例如 1MB。"
+
+msgctxt "frpc-own"
+msgid "Use HeartBeats or NewWorkConns."
+msgstr "使用 HeartBeats 或 NewWorkConns。"
+
+msgctxt "frpc-own"
+msgid "Local port or client plugin is required."
+msgstr "必须填写本地端口或选择客户端插件。"
+
+msgctxt "frpc-own"
+msgid "Invalid header entry"
+msgstr "请求头格式无效"
+
+msgctxt "frpc-own"
+msgid "Invalid header name"
+msgstr "请求头名称无效"
+
+msgctxt "frpc-own"
+msgid "Token is required"
+msgstr "必须填写 Token"
+
+msgctxt "frpc-own"
+msgid "server_addr is required"
+msgstr "必须填写服务端地址"

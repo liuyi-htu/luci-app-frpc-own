@@ -4,6 +4,8 @@ A modern LuCI application for managing the FRP client on OpenWrt and ImmortalWrt
 
 The main package defaults to English, including on systems with the base LuCI Chinese language package installed. Install the optional `luci-i18n-frpc-own-zh-cn` package to enable Simplified Chinese when LuCI uses Chinese. Both packages remain at version **2.0.0-r1**.
 
+Advanced global options are under **More settings** in Authentication. Proxy and visitor editors each have their own **More settings** section. These cover connection protocols, heartbeat and pool settings, TLS certificates, DNS/STUN, OIDC, token files, bandwidth limits, HTTP routing and headers, load balancing, health checks, client plugins, and XTCP retries/fallback. Empty advanced fields use the core defaults. All configuration saves remain blocked while frpc is running. Certificate and plugin paths refer to files on the router.
+
 ## Features
 
 - Start and stop frpc and manage autostart.

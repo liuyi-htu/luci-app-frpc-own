@@ -731,3 +731,323 @@ msgstr ""
 msgctxt "frpc-own"
 msgid "No entries yet"
 msgstr ""
+
+msgctxt "frpc-own"
+msgid "Connection protocol"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Connection timeout (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TCP keepalive (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Outgoing local IP"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Connection proxy URL"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Connection pool size"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TCP multiplexing"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Multiplexing keepalive (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Heartbeat interval (-1 disables)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Heartbeat timeout (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "QUIC keepalive (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "QUIC idle timeout (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "QUIC maximum incoming streams"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TLS certificate file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TLS private key file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TLS trusted CA file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "TLS server name"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Disable custom TLS first byte"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "DNS server"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "STUN server"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "UDP packet size"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Additional authentication scopes"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Token file (replaces inline token)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC client ID"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC client secret"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC audience"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC scope"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC token endpoint URL"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC trusted CA file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "OIDC proxy URL"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Enable proxy"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Bandwidth limit (for example 1MB)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Bandwidth limit location"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "PROXY protocol version"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "HTTP authentication user"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "HTTP authentication password"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Route by HTTP user"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "HTTP path routes"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "HTTP Host rewrite"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Request headers (one Name=Value per line)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Response headers (one Name=Value per line)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Load balancing group"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Load balancing group key"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Health check type"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Health check timeout (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Health check interval (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Health check failure threshold"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Health check HTTP path"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Disable assisted NAT addresses"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Client plugin"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP user"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP password"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "SOCKS5 user"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "SOCKS5 password"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Static file directory"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Static file URL prefix to strip"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Unix socket path"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin local service address"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP Host rewrite"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin request headers (one Name=Value per line)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin TLS certificate file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin TLS private key file"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Plugin HTTP/2"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "XTCP tunnel protocol"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "XTCP retries per hour"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "XTCP minimum retry interval (seconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Fallback visitor name"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Fallback timeout (milliseconds)"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "More settings"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Default"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Separate values with commas"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Use unique Name=Value entries, one per line."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Control characters are not allowed."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Use 0, KB, or MB, for example 1MB."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Use HeartBeats or NewWorkConns."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Local port or client plugin is required."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid header entry"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Invalid header name"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Token is required"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "server_addr is required"
+msgstr ""

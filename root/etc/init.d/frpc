@@ -7,6 +7,7 @@ EXTRA_COMMANDS="generate_runtime_config"
 PROG=/usr/bin/frpc
 CONF=/tmp/frpc/runtime/frpc.toml
 UCI_CONFIG=frpc
+. /usr/libexec/frpc-config-fields
 
 service_error() {
 	local message="$1"
@@ -41,6 +42,65 @@ write_string_array() {
 	return 0
 }
 
+
+write_map() {
+ local prefix="$1" values="$2" line key value
+ while IFS= read -r line || [ -n "$line" ]; do
+  [ -n "$line" ] || continue
+  case "$line" in *=*) ;; *) service_error 'Invalid header entry'; return 1 ;; esac
+  key="${line%%=*}"; value="${line#*=}"
+  key="${key#${key%%[![:space:]]*}}"; key="${key%${key##*[![:space:]]}}"
+  case "$key" in ''|*[!A-Za-z0-9_-]*) service_error 'Invalid header name'; return 1 ;; esac
+  write_line "$prefix.$(toml_quote "$key") = $(toml_quote "$value")"
+ done <<EOF
+$values
+EOF
+}
+
+write_advanced() {
+ local section="$1" entries="$2" entry field key kind value type mode plugin health
+ config_get type "$section" type
+ config_get mode main auth_mode 'metadatas'
+ config_get plugin "$section" plugin_type
+ config_get health "$section" health_type
+ for entry in $entries; do
+  field="${entry%%:*}"; entry="${entry#*:}"; key="${entry%%:*}"; kind="${entry##*:}"
+  config_get value "$section" "$field"
+  [ -n "$value" ] || continue
+  case "$field" in
+   auth_scopes) [ "$mode" != metadatas ] || continue ;;
+   token_file) [ "$mode" = auth ] || continue ;;
+   oidc_*) [ "$mode" = oidc ] || continue ;;
+   quic_*) local protocol; config_get protocol main protocol; [ "$protocol" = quic ] || continue ;;
+   tls_*) local tls; config_get tls main tls_enable true; [ "$tls" = true ] || continue ;;
+   http_user|http_password|route_http_user) case "$type" in http|tcpmux) ;; *) continue ;; esac ;;
+   locations|host_rewrite|request_headers|response_headers) [ "$type" = http ] || continue ;;
+   lb_*) case "$type" in tcp|http|tcpmux) ;; *) continue ;; esac ;;
+   health_path) [ "$health" = http ] || continue ;;
+   health_*) [ -n "$health" ] || continue ;;
+   xtcp_*|fallback_*|nat_disable_assisted) [ "$type" = xtcp ] || continue ;;
+   plugin_*) [ -n "$plugin" ] || continue; case "$type" in tcp|http|https|stcp|xtcp) ;; *) continue ;; esac ;;
+  esac
+  case "$field" in
+   plugin_http_user|plugin_http_password) case "$plugin" in http_proxy|static_file) ;; *) continue ;; esac ;;
+   plugin_username|plugin_password) [ "$plugin" = socks5 ] || continue ;;
+   plugin_path|plugin_strip) [ "$plugin" = static_file ] || continue ;;
+   plugin_unix) [ "$plugin" = unix_domain_socket ] || continue ;;
+   plugin_addr) case "$plugin" in http2https|https2http|https2https|tls2raw) ;; *) continue ;; esac ;;
+   plugin_host|plugin_headers) case "$plugin" in http2https|https2http|https2https) ;; *) continue ;; esac ;;
+   plugin_cert|plugin_key) case "$plugin" in https2http|https2https|tls2raw) ;; *) continue ;; esac ;;
+   plugin_http2) case "$plugin" in https2http|https2https) ;; *) continue ;; esac ;;
+  esac
+  case "$kind" in
+   bool) case "$value" in true|false) ;; *) service_error "Invalid boolean: $field"; return 1 ;; esac; write_line "$key = $value" ;;
+   number) case "$value" in -1) [ "$field" = heartbeat_interval ] || return 1 ;; ''|*[!0-9]*) service_error "Invalid number: $field"; return 1 ;; esac; while [ "${value#0}" != "$value" ] && [ "${#value}" -gt 1 ]; do value="${value#0}"; done; write_line "$key = $value" ;;
+   array) write_string_array "$key" "$value" ;;
+   map) write_map "$key" "$value" || return 1 ;;
+   *) write_line "$key = $(toml_quote "$value")" ;;
+  esac
+ done
+}
+
 render_proxy() {
 	local section="$1" enabled name type local_ip local_port remote_port custom_domains subdomain secret_key allow_users multiplexer use_encryption use_compression
 	config_get enabled "$section" enabled '1'
@@ -58,7 +118,10 @@ render_proxy() {
 	config_get multiplexer "$section" multiplexer 'httpconnect'
 	config_get use_encryption "$section" use_encryption 'false'
 	config_get use_compression "$section" use_compression 'false'
-	[ -n "$local_port" ] || return
+	local plugin_type
+	config_get plugin_type "$section" plugin_type
+	case "$type" in tcp|http|https|stcp|xtcp) ;; *) plugin_type='' ;; esac
+	[ -n "$local_port" ] || [ -n "$plugin_type" ] || return
 	case "$type" in
 		http|https|tcpmux) [ -n "$custom_domains" ] || [ -n "$subdomain" ] || return ;;
 		tcp|udp) [ -n "$remote_port" ] || return ;;
@@ -68,8 +131,10 @@ render_proxy() {
 	write_line "[[proxies]]"
 	write_line "name = $(toml_quote "$name")"
 	write_line "type = $(toml_quote "$type")"
-	write_line "localIP = $(toml_quote "$local_ip")"
-	write_line "localPort = $local_port"
+	if [ -z "$plugin_type" ]; then
+		write_line "localIP = $(toml_quote "$local_ip")"
+		write_line "localPort = $local_port"
+	fi
 	write_line "transport.useEncryption = $use_encryption"
 	write_line "transport.useCompression = $use_compression"
 	case "$type" in
@@ -86,6 +151,7 @@ render_proxy() {
 		write_string_array allowUsers "$allow_users"
 		;;
 	esac
+	write_advanced "$section" "$proxy_advanced_fields" || return 1
 	write_line ''
 }
 
@@ -116,8 +182,12 @@ render_visitor() {
 	write_line "transport.useEncryption = $use_encryption"
 	write_line "transport.useCompression = $use_compression"
 	[ "$type" != 'xtcp' ] || write_line "keepTunnelOpen = $keep_tunnel_open"
+	write_advanced "$section" "$visitor_advanced_fields" || return 1
 	write_line ''
 }
+
+render_proxy_checked() { render_proxy "$1" || CONFIG_FAILED=1; }
+render_visitor_checked() { render_visitor "$1" || CONFIG_FAILED=1; }
 
 generate_config() {
 	local enabled server_addr server_port user auth_mode token login_fail_exit tls_enable log_level log_max_days
@@ -133,11 +203,12 @@ generate_config() {
 	config_get tls_enable main tls_enable 'true'
 	config_get log_level main log_level 'info'
 	config_get log_max_days main log_max_days '3'
-	[ -n "$server_addr" ] && [ -n "$user" ] && [ -n "$token" ] || { service_error 'server_addr, user and token are required'; return 1; }
+	[ -n "$server_addr" ] || { service_error 'server_addr is required'; return 1; }
 	case "$auth_mode" in
 		metadatas|metadata)
 			auth_mode='metadatas'
 			;;
+		oidc) ;;
 		auth|token)
 			auth_mode='auth'
 			;;
@@ -149,19 +220,32 @@ generate_config() {
 	write_line "serverPort = $server_port"
 	write_line "user = $(toml_quote "$user")"
 	if [ "$auth_mode" = 'metadatas' ]; then
+		[ -n "$token" ] || { service_error 'Token is required'; return 1; }
 		write_line "metadatas.token = $(toml_quote "$token")"
-	else
-		write_line "auth.method = $(toml_quote 'token')"
-		write_line "auth.token = $(toml_quote "$token")"
-	fi
+	elif [ "$auth_mode" = oidc ]; then
+  write_line 'auth.method = "oidc"'
+ else
+  write_line 'auth.method = "token"'
+  local token_file
+  config_get token_file main token_file
+  if [ -n "$token_file" ]; then
+   write_line 'auth.tokenSource.type = "file"'
+  else
+   [ -n "$token" ] || { service_error 'Token is required'; return 1; }
+   write_line "auth.token = $(toml_quote "$token")"
+  fi
+ fi
 	write_line "loginFailExit = $login_fail_exit"
 	write_line "transport.tls.enable = $tls_enable"
 	write_line "log.to = $(toml_quote '/var/log/frpc.log')"
 	write_line "log.level = $(toml_quote "$log_level")"
 	write_line "log.maxDays = $log_max_days"
 	write_line ''
-	config_foreach render_proxy proxy
-	config_foreach render_visitor visitor
+	write_advanced main "$main_advanced_fields" || return 1
+	CONFIG_FAILED=0
+	config_foreach render_proxy_checked proxy
+	config_foreach render_visitor_checked visitor
+	[ "$CONFIG_FAILED" = 0 ] || return 1
 	chmod 0600 "$CONF"
 }
 

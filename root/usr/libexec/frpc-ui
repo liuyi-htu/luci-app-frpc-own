@@ -3,6 +3,7 @@
 set -u
 
 INIT=/etc/init.d/frpc
+. /usr/libexec/frpc-config-fields
 UPDATE=/usr/libexec/frpc-update
 RAM_ROOT=/tmp/frpc
 RUNTIME_CONFIG=$RAM_ROOT/runtime/frpc.toml
@@ -53,12 +54,14 @@ save_authentication() {
 	[ -s "$AUTH_UPLOAD" ] || fail 'Authentication is empty'
 	[ "$(wc -c < "$AUTH_UPLOAD")" -le 16384 ] || fail 'Authentication data is too large'
 	local fields='server_addr server_port user auth_mode token tls_enable login_fail_exit log_level log_max_days'
+	local entry
+	for entry in $main_advanced_fields; do fields="$fields ${entry%%:*}"; done
 	local field value
 	# Validate every field before changing UCI. Only this whitelist is persisted;
 	# proxy/visitor changes staged in the LuCI RPC session remain untouched.
 	for field in $fields; do
 		value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field" 2>/dev/null)" || fail 'Invalid authentication data'
-		[ -n "$value" ] || fail "Authentication field is required: $field"
+		case "$field" in server_addr|server_port|auth_mode|tls_enable|login_fail_exit|log_level|log_max_days) [ -n "$value" ] || fail "Authentication field is required: $field" ;; esac
 		[ "$(printf '%s' "$value" | tr -d '\000-\037\177')" = "$value" ] || fail "Authentication field contains control characters: $field"
 		case "$field" in
 			server_addr) printf '%s' "$value" | grep -q '[[:space:]]' && fail 'Server address must not contain whitespace' ;;
@@ -71,15 +74,45 @@ save_authentication() {
 					[ "$value" -le 3650 ] || fail 'Log retention is out of range'
 				fi ;;
 			user) [ "${#value}" -le 64 ] || fail 'User must not exceed 64 characters' ;;
-			auth_mode) case "$value" in metadatas|auth) ;; *) fail 'Invalid authentication method' ;; esac ;;
+			auth_mode) case "$value" in metadatas|auth|oidc) ;; *) fail 'Invalid authentication method' ;; esac ;;
 			tls_enable|login_fail_exit) case "$value" in true|false) ;; *) fail 'Invalid boolean value' ;; esac ;;
 			log_level) case "$value" in trace|debug|info|warn|error) ;; *) fail 'Invalid log level' ;; esac ;;
+			protocol) case "$value" in ''|tcp|kcp|quic|websocket|wss) ;; *) fail "Invalid authentication data" ;; esac ;;
+			dial_timeout) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			dial_keepalive) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			pool_count) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			tcp_mux) case "$value" in ''|true|false) ;; *) fail "Invalid authentication data" ;; esac ;;
+			mux_keepalive) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			heartbeat_interval) if [ -n "$value" ]; then [ "$value" = -1 ] || { case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; }; fi ;;
+			heartbeat_timeout) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			quic_keepalive) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			quic_idle) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			quic_streams) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
+			tls_no_first_byte) case "$value" in ''|true|false) ;; *) fail "Invalid authentication data" ;; esac ;;
+			udp_packet_size) if [ -n "$value" ]; then case "$value" in *[!0-9]*) fail "Invalid numeric field: $field" ;; esac; [ "${#value}" -le 10 ] && [ "$value" -le 2147483647 ] || fail "Numeric field is out of range: $field"; fi ;;
 		esac
 	done
-	is_running && fail 'frpc is running. Stop the service before saving configuration'
-	for field in $fields; do
+ local mode token token_file oidc_id oidc_secret oidc_endpoint
+ mode="$(jsonfilter -i "$AUTH_UPLOAD" -e '@.auth_mode')"
+ token="$(jsonfilter -i "$AUTH_UPLOAD" -e '@.token')"
+ token_file="$(jsonfilter -i "$AUTH_UPLOAD" -e '@.token_file')"
+ if [ "$mode" = metadatas ] || { [ "$mode" = auth ] && [ -z "$token_file" ]; }; then
+  [ -n "$token" ] || fail 'Authentication field is required: token'
+ fi
+ if [ "$mode" = oidc ]; then
+  for field in oidc_client_id oidc_client_secret oidc_endpoint; do
+   value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field")"
+   [ -n "$value" ] || fail "Authentication field is required: $field"
+  done
+ fi
+ is_running && fail 'frpc is running. Stop the service before saving configuration'
+ for field in $fields; do
 		value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field" 2>/dev/null)" || fail 'Failed to read authentication data'
-		uci -q set "frpc.main.$field=$value" >/dev/null 2>&1 || fail 'Failed to write authentication data'
+		if [ -n "$value" ]; then
+   uci -q set "frpc.main.$field=$value" >/dev/null 2>&1 || fail 'Failed to write authentication data'
+  else
+   uci -q delete "frpc.main.$field" >/dev/null 2>&1 || true
+  fi
 	done
 	uci -q set frpc.main.enabled='1' || fail 'Failed to set the enabled flag'
 	uci -q commit frpc || fail 'Failed to save authentication'

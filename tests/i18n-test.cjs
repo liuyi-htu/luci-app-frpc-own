@@ -14,7 +14,7 @@ for (const line of fs.readFileSync(path.join(root, 'po/zh_Hans/frpc-own.po'), 'u
     catalog.set(id, JSON.parse(line.slice(7)));
   }
 }
-for (const relative of ['htdocs/luci-static/resources/view/frpc/overview.js', 'htdocs/luci-static/resources/frpc/i18n.js']) {
+for (const relative of ['htdocs/luci-static/resources/view/frpc/overview.js', 'htdocs/luci-static/resources/frpc/i18n.js', 'htdocs/luci-static/resources/frpc/settings.js']) {
   const source = fs.readFileSync(path.join(root, relative), 'utf8');
   assert.doesNotMatch(source, /[\u4e00-\u9fff]/);
   for (const match of source.matchAll(/_\(('(?:[^'\\]|\\.)*')(?:, 'frpc-own')?\)/g)) {
