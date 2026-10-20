@@ -57,9 +57,54 @@ const view = new Function(...Object.keys(dependencies), source)(...Object.values
   assert.equal(parent.childNodes[1].childNodes[2], b);
   const option = (key, value, active = true, valid = true, optional = true) => ({option: key, title: key, rmempty: optional,
     formvalue: () => value, isActive: () => active, isValid: () => valid});
-  const self = {...view, updateControls() {}, assertStopped: async () => {}, refreshStatus: async () => {}};
+  const buttons = ['save', 'edit', 'delete', 'autostart', 'restart', 'update'].map(kind => ({
+    kind, dataset: {}, classList: {contains: () => false}, hasAttribute: key => key === 'data-frpc-update' && kind === 'update'
+  }));
+  const serviceButton = {};
+  dependencies.document.querySelectorAll = () => buttons;
+  dependencies.document.getElementById = () => serviceButton;
+  const controls = {...view, running: true, statusKnown: true};
+  controls.updateControls();
+  for (const button of buttons) assert.equal(button.disabled, button.kind === 'update', button.kind);
+  assert.equal(serviceButton.disabled, false);
+  controls.saving = true;
+  controls.updateControls();
+  assert(buttons.every(button => button.disabled));
+  assert.equal(serviceButton.disabled, true);
+  const self = {...view, running: true, updateControls() {}, refreshStatus: async () => ({running: true})};
   await self.saveAuthentication([option('server_addr', 'example.org', true, true, false), option('protocol', ''),
     option('oidc_client_secret', 'unused-secret', false, false), option('heartbeat_interval', '-1')]);
   assert.deepEqual(uploaded, {server_addr: 'example.org', protocol: '', oidc_client_secret: '', heartbeat_interval: '-1'});
-  console.log('Advanced field dependencies, header validation, collapsed DOM and optional authentication save passed');
+  let runtimeRefreshes = 0, statusRefreshes = 0;
+  const restartView = {...view, updateControls() {},
+    refreshRuntimeConfig: async () => { runtimeRefreshes++; },
+    refreshStatus: async () => { statusRefreshes++; }
+  };
+  const row = restartView.renderStatusBar({running: true, enabled: false, version: 'test'}).childNodes[0];
+  const stopIndex = row.childNodes.findIndex(node => node.attrs && node.attrs.id === 'frpc-service-toggle');
+  const restart = row.childNodes[stopIndex + 1];
+  assert.equal(restart.attrs.id, 'frpc-service-restart');
+  const commands = [];
+  let completeRestart;
+  dependencies.fs.exec = async (program, args) => {
+    commands.push([program, args]);
+    return new Promise(resolve => { completeRestart = resolve; });
+  };
+  const pending = restart.attrs.click({currentTarget: restart});
+  assert.equal(restartView.serviceBusy, true);
+  restart.attrs.click({currentTarget: restart});
+  assert.equal(commands.length, 1, 'Repeated clicks must not start another restart');
+  assert.deepEqual(commands[0], ['/usr/libexec/frpc-ui', ['service', 'restart']]);
+  completeRestart({code: 0, stdout: ''});
+  await pending;
+  assert.equal(runtimeRefreshes, 1);
+  assert.equal(statusRefreshes, 1);
+  assert.equal(restartView.serviceBusy, false);
+  dependencies.fs.exec = async () => ({code: 1, stderr: 'Invalid saved configuration'});
+  await restart.attrs.click({currentTarget: restart});
+  assert.equal(runtimeRefreshes, 1, 'Failed restarts must not report a refreshed configuration');
+  assert.equal(statusRefreshes, 2, 'Service status must update after a failed restart');
+  assert.equal(restartView.serviceBusy, false);
+  console.log('Restart button placement, latest configuration refresh, repeated clicks and failure recovery passed');
+  console.log('Advanced field dependencies, header validation, collapsed DOM and optional authentication save while running passed');
 })().catch(e => {console.error(e); process.exitCode = 1;});

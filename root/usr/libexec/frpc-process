@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# BusyBox pidof may also return /etc/init.d/frpc's shell interpreter.
+# Only count processes executing the client binary, including a replaced binary.
+frpc_is_running() {
+	local program pid executable
+	program="$(readlink -f "${1:-/usr/bin/frpc}")" || return 1
+	for pid in $(pidof frpc 2>/dev/null); do
+		executable="$(readlink "/proc/$pid/exe" 2>/dev/null)" || continue
+		case "$executable" in
+			"$program"|"$program (deleted)") return 0 ;;
+		esac
+	done
+	return 1
+}

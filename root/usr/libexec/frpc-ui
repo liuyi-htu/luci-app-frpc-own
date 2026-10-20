@@ -4,6 +4,7 @@ set -u
 
 INIT=/etc/init.d/frpc
 . /usr/libexec/frpc-config-fields
+. /usr/libexec/frpc-process
 UPDATE=/usr/libexec/frpc-update
 RAM_ROOT=/tmp/frpc
 RUNTIME_CONFIG=$RAM_ROOT/runtime/frpc.toml
@@ -24,7 +25,7 @@ prepare_ram_dirs() {
 }
 
 is_running() {
-	pidof frpc >/dev/null 2>&1
+	frpc_is_running
 }
 
 is_enabled() {
@@ -50,7 +51,6 @@ service_action() {
 
 save_authentication() {
 	trap 'rm -f "$AUTH_UPLOAD"' EXIT INT TERM
-	is_running && fail 'frpc is running. Stop the service before saving configuration'
 	[ -s "$AUTH_UPLOAD" ] || fail 'Authentication is empty'
 	[ "$(wc -c < "$AUTH_UPLOAD")" -le 16384 ] || fail 'Authentication data is too large'
 	local fields='server_addr server_port user auth_mode token tls_enable login_fail_exit log_level log_max_days'
@@ -105,7 +105,6 @@ save_authentication() {
    [ -n "$value" ] || fail "Authentication field is required: $field"
   done
  fi
- is_running && fail 'frpc is running. Stop the service before saving configuration'
  for field in $fields; do
 		value="$(jsonfilter -i "$AUTH_UPLOAD" -e "@.$field" 2>/dev/null)" || fail 'Failed to read authentication data'
 		if [ -n "$value" ]; then
@@ -116,7 +115,7 @@ save_authentication() {
 	done
 	uci -q set frpc.main.enabled='1' || fail 'Failed to set the enabled flag'
 	uci -q commit frpc || fail 'Failed to save authentication'
-	printf '%s\n' 'Authentication saved. You can start the service manually.'
+	printf '%s\n' 'Authentication saved. Changes take effect the next time the service starts.'
 }
 
 read_log() {
@@ -161,9 +160,6 @@ case "${1:-}" in
 		;;
 	read-runtime-config|read-config)
 		[ "$#" -eq 1 ] || fail 'Invalid arguments'
-		if ! is_running; then
-			"$INIT" generate_runtime_config || fail 'Failed to generate runtime configuration. Check authentication and proxy settings.'
-		fi
 		if [ -f "$RUNTIME_CONFIG" ]; then
 			cat "$RUNTIME_CONFIG"
 		fi

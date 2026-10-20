@@ -13,6 +13,7 @@ node --check "$project_root/htdocs/luci-static/resources/frpc/i18n.js"
 node "$project_root/tests/i18n-test.cjs"
 node "$project_root/tests/settings-test.cjs"
 python3 "$project_root/tests/auth-test.py"
+python3 "$project_root/tests/runtime-test.py"
 node --check "$project_root/htdocs/luci-static/resources/frpc/settings.js"
 for file in "$project_root"/root/usr/libexec/* "$project_root"/root/etc/init.d/frpc "$project_root"/root/etc/uci-defaults/*; do
   busybox ash -n "$file"

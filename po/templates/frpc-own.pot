@@ -1051,3 +1051,19 @@ msgstr ""
 msgctxt "frpc-own"
 msgid "server_addr is required"
 msgstr ""
+
+msgctxt "frpc-own"
+msgid "Saved changes take effect the next time the service starts. Runtime configuration shows the last startup snapshot."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Authentication saved. Changes take effect the next time the service starts."
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "Restart service"
+msgstr ""
+
+msgctxt "frpc-own"
+msgid "frpc restarted with the latest saved configuration."
+msgstr ""

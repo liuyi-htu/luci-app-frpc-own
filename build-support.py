@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='frpc-package-') as temporary:
         js = extracted / 'www/luci-static/resources/view/frpc/overview.js'
         subprocess.run(['node', '--check', str(js)], check=True)
         built_js = js.read_text()
-        for marker in ('data-frpc-save', 'renderRuntimeConfig', 'refreshRuntimeConfig', 'read-runtime-config', 'saveAuthentication', 'Saveauthentication', 'ui.showModal', 'updateControls', 'data-frpc-readonly-action', 'assertStopped', 'handleSave:null', 'handleSaveApply:null', 'handleReset:null'):
+        for marker in ('data-frpc-save', 'renderRuntimeConfig', 'refreshRuntimeConfig', 'read-runtime-config', 'saveAuthentication', 'Saveauthentication', 'ui.showModal', 'updateControls', 'data-frpc-readonly-action', 'checkConfigAccess', 'handleSave:null', 'handleSaveApply:null', 'handleReset:null'):
             assert marker in re.sub(r'\s+', '', built_js), f'Missing frontend change: {marker}'
         assert 'Update core' in built_js
         assert 'scrollbar-width:none' in built_js

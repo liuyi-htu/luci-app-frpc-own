@@ -28,6 +28,7 @@ def generate(main=None, proxies=None, visitors=None, verify=True):
         source = (ROOT / 'root/etc/init.d/frpc').read_text().replace(
             '. /usr/libexec/frpc-config-fields',
             '. ' + shlex.quote(str(ROOT / 'root/usr/libexec/frpc-config-fields')))
+        source = source.replace('. /usr/libexec/frpc-process', '. ' + shlex.quote(str(ROOT / 'root/usr/libexec/frpc-process')))
         source = '\n'.join(source.splitlines()[1:])
         config = folder / 'generated.toml'
         cases = '\n'.join(f'{shlex.quote(sid+":"+key)}) config_result={shlex.quote(value)} ;;'

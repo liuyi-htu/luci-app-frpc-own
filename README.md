@@ -4,15 +4,15 @@ A modern LuCI application for managing the FRP client on OpenWrt and ImmortalWrt
 
 The main package defaults to English, including on systems with the base LuCI Chinese language package installed. Install the optional `luci-i18n-frpc-own-zh-cn` package to enable Simplified Chinese when LuCI uses Chinese. Both packages remain at version **2.0.0-r1**.
 
-Advanced global options are under **More settings** in Authentication. Proxy and visitor editors each have their own **More settings** section. These cover connection protocols, heartbeat and pool settings, TLS certificates, DNS/STUN, OIDC, token files, bandwidth limits, HTTP routing and headers, load balancing, health checks, client plugins, and XTCP retries/fallback. Empty advanced fields use the core defaults. All configuration saves remain blocked while frpc is running. Certificate and plugin paths refer to files on the router.
+Advanced global options are under **More settings** in Authentication. Proxy and visitor editors each have their own **More settings** section. These cover connection protocols, heartbeat and pool settings, TLS certificates, DNS/STUN, OIDC, token files, bandwidth limits, HTTP routing and headers, load balancing, health checks, client plugins, and XTCP retries/fallback. Empty advanced fields use the core defaults. Configuration can be edited and saved while frpc is running; changes take effect on the next start or manual restart. Certificate and plugin paths refer to files on the router.
 
 ## Features
 
-- Start and stop frpc and manage autostart.
+- Start, stop, or restart frpc and manage autostart. Restart waits for the old process to exit before loading the latest saved configuration.
 - Manage TCP, UDP, HTTP, HTTPS, STCP, SUDP, XTCP, and TCPMUX proxies and private protocol visitors.
 - Save authentication separately; save proxies and visitors in their own editors.
-- View read-only runtime TOML. Opening the tab regenerates the preview from saved settings while stopped, and reads the active configuration while running.
-- Disable configuration and update controls while running, while allowing service shutdown and log viewing.
+- View read-only runtime TOML. The tab displays the last successful startup snapshot, including while stopped; viewing it never regenerates or changes the configuration.
+- Keep configuration controls available while running; core update controls require stopping the service.
 - Read or clear frpc and update logs. Logs exceeding 512 KiB retain their latest 256 KiB; a procd worker checks every five seconds while running.
 - Update the core online or upload a `frpc` executable or archive. Only newer versions replace the existing executable.
 - Display messages using native LuCI dialogs and hide scrollbars without disabling scrolling.
@@ -24,9 +24,11 @@ Backend logs are stored in English. The optional language package translates kno
 | File | Purpose |
 | --- | --- |
 | `/etc/config/frpc` | Persistent UCI settings |
-| `/tmp/frpc/runtime/frpc.toml` | Generated runtime configuration |
+| `/tmp/frpc/runtime/frpc.toml` | Runtime snapshot generated and verified at startup |
 | `/var/log/frpc.log` | Client log |
 | `/var/log/update.log` | Update log |
+
+Saving `/etc/config/frpc` or requesting a service reload does not restart frpc or change its runtime snapshot. Each service start reads the saved UCI settings and replaces the runtime snapshot only after successful validation. Automatic process respawns continue using that snapshot.
 
 The device must provide `/usr/bin/frpc`. The application packages are architecture independent (`noarch`/`all`) and do not bundle the frpc executable.
 

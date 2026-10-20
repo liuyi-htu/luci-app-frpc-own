@@ -2,12 +2,12 @@
 
 START=99
 USE_PROCD=1
-EXTRA_COMMANDS="generate_runtime_config"
 
 PROG=/usr/bin/frpc
 CONF=/tmp/frpc/runtime/frpc.toml
 UCI_CONFIG=frpc
 . /usr/libexec/frpc-config-fields
+. /usr/libexec/frpc-process
 
 service_error() {
 	local message="$1"
@@ -249,16 +249,25 @@ generate_config() {
 	chmod 0600 "$CONF"
 }
 
-generate_runtime_config() {
-	generate_config
+prepare_runtime_config() {
+	local runtime_config="$CONF"
+	mkdir -p "${runtime_config%/*}" || return 1
+	chmod 0700 "${runtime_config%/*}"
+	local CONF
+	CONF="$(mktemp "${runtime_config}.XXXXXX")" || return 1
+	generate_config || { rm -f "$CONF"; return 1; }
+	[ -s "$CONF" ] || { service_error "frpc runtime config is missing or empty: $CONF"; rm -f "$CONF"; return 1; }
+	local verify_output
+	verify_output="$($PROG verify -c "$CONF" 2>&1)" || { service_error "configuration validation failed: $verify_output"; rm -f "$CONF"; return 1; }
+	mv -f "$CONF" "$runtime_config" || { rm -f "$CONF"; return 1; }
 }
 
 start_service() {
 	[ -x "$PROG" ] || { service_error "frpc executable not found: $PROG"; return 1; }
-	generate_config || return 1
-	[ -s "$CONF" ] || { service_error "frpc runtime config is missing or empty: $CONF"; return 1; }
-	local verify_output
-	verify_output="$($PROG verify -c "$CONF" 2>&1)" || { service_error "configuration validation failed: $verify_output"; return 1; }
+	# Repeated start requests keep the active snapshot and procd instances.
+	if ! frpc_is_running "$PROG"; then
+		prepare_runtime_config || return 1
+	fi
 	mkdir -p /var/log
 	procd_open_instance
 	procd_set_param command "$PROG" -c "$CONF"
@@ -273,11 +282,19 @@ start_service() {
 }
 
 reload_service() {
-	# A config commit must not start a service the user has stopped.
-	pidof frpc >/dev/null 2>&1 || return 0
-	start
+	# UCI commits and reload requests only save settings for the next start.
+	return 0
 }
 
-service_triggers() {
-	procd_add_reload_trigger "$UCI_CONFIG"
+restart() {
+	# procd stops asynchronously. Starting while the old process is still alive
+	# would preserve its snapshot instead of reading the newly saved settings.
+	stop "$@" || return 1
+	local remaining=30
+	while frpc_is_running "$PROG"; do
+		[ "$remaining" -gt 0 ] || { service_error 'Timed out waiting for frpc to stop'; return 1; }
+		sleep 1
+		remaining=$((remaining - 1))
+	done
+	start "$@"
 }

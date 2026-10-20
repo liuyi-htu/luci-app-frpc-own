@@ -1051,3 +1051,19 @@ msgstr "必须填写 Token"
 msgctxt "frpc-own"
 msgid "server_addr is required"
 msgstr "必须填写服务端地址"
+
+msgctxt "frpc-own"
+msgid "Saved changes take effect the next time the service starts. Runtime configuration shows the last startup snapshot."
+msgstr "保存的修改将在下次启动服务时生效。运行配置显示上次启动时的配置快照。"
+
+msgctxt "frpc-own"
+msgid "Authentication saved. Changes take effect the next time the service starts."
+msgstr "认证信息已保存。修改将在下次启动服务时生效。"
+
+msgctxt "frpc-own"
+msgid "Restart service"
+msgstr "重启服务"
+
+msgctxt "frpc-own"
+msgid "frpc restarted with the latest saved configuration."
+msgstr "frpc 已使用最新保存的配置重启。"

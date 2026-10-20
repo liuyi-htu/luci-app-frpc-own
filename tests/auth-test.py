@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'root/usr/libexec/frpc-ui').read_text().split('\nprepare_ram_dirs\n', 1)[0]
 source = source.replace('. /usr/libexec/frpc-config-fields', '. '+shlex.quote(str(ROOT / 'root/usr/libexec/frpc-config-fields')))
+source = source.replace('. /usr/libexec/frpc-process', '. '+shlex.quote(str(ROOT / 'root/usr/libexec/frpc-process')))
 fields = re.search(r"main_advanced_fields='([^']+)'", (ROOT / 'root/usr/libexec/frpc-config-fields').read_text())[1].split()
 base = dict.fromkeys((f.split(':')[0] for f in fields), '')
 base.update(server_addr='example.org',server_port='7000',user='',auth_mode='auth',token='test-only',
@@ -45,5 +46,5 @@ assert code==0 and 'delete frpc.main.token' in writes
 code,writes,_=save({'auth_mode':'oidc','token':'','oidc_client_id':'id','oidc_client_secret':'test-only','oidc_endpoint':'https://example.org/token'})
 assert code==0 and 'frpc.main.auth_mode=oidc' in writes
 code,writes,_=save({},running=True)
-assert code!=0 and not writes
-print('Authentication whitelist, optional deletion, numeric/enumeration validation, OIDC/token-file and running-service guard passed')
+assert code==0 and 'commit frpc' in writes
+print('Authentication whitelist, optional deletion, numeric/enumeration validation, OIDC/token-file and saving while running passed')

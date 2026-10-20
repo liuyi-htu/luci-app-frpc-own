@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -u
+. /usr/libexec/frpc-process
 
 LOG=/var/log/update.log
 RAM_DIR=/tmp/frpc/update
@@ -96,7 +97,7 @@ install_candidate() {
 	fi
 
 	was_running=0
-	pidof frpc >/dev/null 2>&1 && was_running=1
+	frpc_is_running && was_running=1
 	set_progress running 82 'Stopping frpc service...'
 	[ "$was_running" -eq 0 ] || /etc/init.d/frpc stop >/dev/null 2>&1 || fail 'Failed to stop frpc'
 
@@ -120,7 +121,7 @@ install_candidate() {
 		set_progress running 94 'Starting new frpc...'
 		/etc/init.d/frpc start >/dev/null 2>&1
 		sleep 2
-		if ! pidof frpc >/dev/null 2>&1; then
+		if ! frpc_is_running; then
 			log 'New frpc failed to start. Rolling back.'
 			[ -f "$WORKDIR/frpc.backup" ] || fail 'Startup failed and no backup is available'
 			cp "$WORKDIR/frpc.backup" /usr/bin/frpc

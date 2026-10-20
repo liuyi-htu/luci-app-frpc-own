@@ -137,19 +137,17 @@ return view.extend({
 	updateControls: function() {
 		var self = this;
 		var busy = this.saving || this.mapSaving || this.serviceBusy;
-		var blocked = !this.statusKnown || this.running || busy || this.formReadonly;
+		var blocked = !this.statusKnown || busy || this.formReadonly;
 		document.querySelectorAll('[data-frpc-save], #frpc-page button:not([data-frpc-readonly-action]):not(#frpc-service-toggle)').forEach(function(button) {
-			button.disabled = !!blocked || button.dataset.frpcBusy === '1' || button.classList.contains('spinning');
-			button.title = blocked ? _('Stop frpc before making changes.', 'frpc-own') : '';
+			button.disabled = !!blocked || (self.running && button.hasAttribute('data-frpc-update')) || button.dataset.frpcBusy === '1' || button.classList.contains('spinning');
+			button.title = self.running && button.hasAttribute('data-frpc-update') ? _('Stop frpc before making changes.', 'frpc-own') : '';
 		});
 		var serviceButton = document.getElementById('frpc-service-toggle');
 		if (serviceButton) serviceButton.disabled = !!busy || !!self.formReadonly || !self.statusKnown;
 	},
 
-	assertStopped: function() {
-		return this.refreshStatus().then(function(status) {
-			if (status.running) throw new Error(_('frpc is running. Stop the service before saving configuration.', 'frpc-own'));
-		});
+	checkConfigAccess: function() {
+		return this.refreshStatus();
 	},
 
 	guardMap: function(map) {
@@ -160,15 +158,15 @@ return view.extend({
 			if (self.mapSaving || self.serviceBusy) return Promise.reject(new Error(_('An operation is in progress. Try saving again later.', 'frpc-own')));
 			self.mapSaving = true;
 			self.updateControls();
-			return self.assertStopped().then(function() {
+			return self.checkConfigAccess().then(function() {
 				return save.call(map, function() {
-					return self.assertStopped().then(function() {
+					return self.checkConfigAccess().then(function() {
 						uci.set('frpc', 'main', 'enabled', '1');
 						if (callback) return callback();
 					});
 				}, true);
 			}).then(function() {
-				return self.assertStopped();
+				return self.checkConfigAccess();
 			}).then(function() {
 				return commitConfig('frpc');
 			}).then(function() {
@@ -191,7 +189,7 @@ return view.extend({
 		var remove = grid.handleRemove;
 		grid.handleRemove = function(sectionId, ev) {
 			var section = this;
-			return self.assertStopped().then(function() { return remove.call(section, sectionId, ev); }).catch(notifyError);
+			return self.checkConfigAccess().then(function() { return remove.call(section, sectionId, ev); }).catch(notifyError);
 		};
 		grid.handleModalSave = function(modalMap, ev) {
 			return saveModal.call(this, modalMap, ev).then(function() {
@@ -221,7 +219,7 @@ return view.extend({
 		grid.addModalOptions = function(modalSection) { self.guardMap(modalSection.map); };
 		grid.renderMoreOptionsModal = function(sectionId, ev) {
 			var section = this;
-			return self.assertStopped().then(function() {
+			return self.checkConfigAccess().then(function() {
 				return renderModal.call(section, sectionId, ev);
 			}).then(function() {
 				foldAdvanced(document.getElementById('modal_overlay'));
@@ -242,7 +240,7 @@ return view.extend({
 		if (self.saving || self.mapSaving || self.serviceBusy) return Promise.resolve();
 		self.saving = true;
 		self.updateControls();
-		return self.assertStopped().then(function() {
+		return self.checkConfigAccess().then(function() {
 			var values = {};
 			options.forEach(function(option) {
 				var value = option.formvalue('main');
@@ -327,6 +325,26 @@ return view.extend({
 			}
 		}, initialStatus.running ? _('Stop service', 'frpc-own') : _('Start service', 'frpc-own'));
 
+		var restartButton = E('button', {
+			'type': 'button',
+			'class': 'btn cbi-button-action',
+			'id': 'frpc-service-restart',
+			'click': function(ev) {
+				if (ev.currentTarget.disabled || self.saving || self.mapSaving || self.serviceBusy) return;
+				self.serviceBusy = true;
+				self.updateControls();
+				return runCommand([ 'service', 'restart' ]).then(function() {
+					notify(_('frpc restarted with the latest saved configuration.', 'frpc-own'));
+					return self.refreshRuntimeConfig();
+				}).catch(notifyError).finally(function() {
+					return self.refreshStatus().catch(notifyError).finally(function() {
+						self.serviceBusy = false;
+						self.updateControls();
+					});
+				});
+			}
+		}, _('Restart service', 'frpc-own'));
+
 		var enableButton = E('button', {
 			'type': 'button',
 			'class': 'btn cbi-button-apply',
@@ -361,21 +379,25 @@ return view.extend({
 				E('span', {}, [ _('Version', 'frpc-own') + ': ', E('strong', { 'id': 'frpc-version-status' }, initialStatus.version) ]),
 
 				serviceButton,
+				restartButton,
 				enableButton
 			])
 		]);
 	},
 
 	renderRuntimeConfig: function(content) {
-		return E('textarea', {
-			'id': 'frpc-runtime-config',
-			'class': 'cbi-input-textarea frpc-config',
-			'readonly': true,
-			'spellcheck': 'false',
-			'wrap': 'off',
-			'aria-label': _('Runtime configuration', 'frpc-own'),
-			'placeholder': _('No runtime configuration is available.', 'frpc-own')
-		}, this.runtimeConfigContent != null ? this.runtimeConfigContent : (content || ''));
+		return E('div', {}, [
+			E('p', { 'class': 'cbi-section-descr' }, _('Saved changes take effect the next time the service starts. Runtime configuration shows the last startup snapshot.', 'frpc-own')),
+			E('textarea', {
+				'id': 'frpc-runtime-config',
+				'class': 'cbi-input-textarea frpc-config',
+				'readonly': true,
+				'spellcheck': 'false',
+				'wrap': 'off',
+				'aria-label': _('Runtime configuration', 'frpc-own'),
+				'placeholder': _('No runtime configuration is available.', 'frpc-own')
+			}, this.runtimeConfigContent != null ? this.runtimeConfigContent : (content || ''))
+		]);
 	},
 
 	refreshRuntimeConfig: function() {
@@ -531,7 +553,7 @@ return view.extend({
 		this.refreshUpdateProgress = refreshProgress;
 
 		onlineButton = E('button', {
-			'type': 'button', 'class': 'btn cbi-button-apply important',
+			'type': 'button', 'class': 'btn cbi-button-apply important', 'data-frpc-update': '1',
 			'click': function(ev) {
 				var button = ev.currentTarget;
 				if (!confirm(_('Check for online updates?', 'frpc-own'))) return;
@@ -551,7 +573,7 @@ return view.extend({
 		}, _('Online update', 'frpc-own'));
 
 		uploadButton = E('button', {
-			'type': 'button', 'class': 'btn cbi-button-action',
+			'type': 'button', 'class': 'btn cbi-button-action', 'data-frpc-update': '1',
 			'click': function(ev) {
 				var button = ev.currentTarget;
 				if (button.disabled) return;
@@ -594,8 +616,8 @@ return view.extend({
 		var m = new form.Map('frpc');
 		m.data = Object.create(uci);
 		m.data.move = function() {
-			if (!self.statusKnown || self.running || self.saving || self.mapSaving || self.serviceBusy) {
-				notifyError(new Error(_('Stop frpc before reordering proxies.', 'frpc-own')));
+			if (!self.statusKnown || self.saving || self.mapSaving || self.serviceBusy) {
+				notifyError(new Error(_('An operation is in progress. Try saving again later.', 'frpc-own')));
 				return false;
 			}
 			var moved = uci.move.apply(uci, arguments);
@@ -713,7 +735,7 @@ return view.extend({
 					'type': 'button',
 					'class': 'btn cbi-button-apply important',
 					'data-frpc-save': 'auth',
-					'disabled': !self.statusKnown || self.running || self.saving || self.mapSaving || self.serviceBusy,
+					'disabled': !self.statusKnown || self.saving || self.mapSaving || self.serviceBusy,
 					'click': function() { return self.saveAuthentication(authOptions); }
 				}, _('Save authentication', 'frpc-own'))
 			]);
@@ -729,7 +751,7 @@ return view.extend({
 		ss.addbtntitle = _('Add proxy', 'frpc-own');
 		ss.handleAdd = function(ev) {
 			var section = this;
-			return self.assertStopped().then(function() {
+			return self.checkConfigAccess().then(function() {
 				var configName = section.uciconfig || section.map.config;
 				var sectionId = uci.add(configName, section.sectiontype);
 				uci.set(configName, sectionId, 'enabled', '1');
